@@ -14,16 +14,19 @@ This tool just browses over user public information, the same way a human could 
 
 ## General working
 This tool works using the following process:
-- It uses Google chrome / chromium browser to navigate to public available information, just in the same wa a human user should do.
-- Web browser is controlled from Java using a selenium web browser.
-- Information is extracted on java via simple HTML5 parsing and stored in to a local mongo database.
+- It uses Google chrome / chromium browser to navigate to public available information, just in the same way a human user should do.
+- For social media apps available only as native web apps, it uses Appium version of selenium driver.
+- Web browser or app is controlled from Java using a selenium web browser.
+- Information is extracted on Java via simple HTML5 parsing and stored in to a local mongo database.
 - Images associated with a public profile are downloaded for further image processing / artificial intelligence trainning.
 - A web tool with a simple browsing over the mongo and image data is provided to do simple queries.
 
 ## Sample use cases
 
-Imagine you are a guy trying to date a girl in your local area and you open a dating app. You will find yourself
-repeating over an over again the same steps:
+### Meet people on your local area
+
+Imagine you are a guy trying to date a girl in your local area and you create a profile on a dating app.
+You will find yourself repeating over an over again the same steps:
 
 - Swipe left and right profiles you like.
 - Waiting if there is any match.
@@ -38,3 +41,16 @@ enjoy life. Imagine that you can:
 - Once the AI catches a good contact based on your preferences, the AI sends you a report to your whatsapp so
   you can continue with the real funny an interesting part.
 
+### Check if a person you are interested in is using a particular social media app
+
+You have some pictures, but no more data on a person public internet. Then, by change you find this person has
+a profile on a dating app. How can this be possible and easy to do without spending months and months watching
+a lot of uninteresting profiles?
+
+Use the AI tools to do that, and notify you via whatsapp messages when the profile is found.
+
+### Cross reference different profiles of the same person
+
+A social media app usually allows people to open several accounts / profiles. Similar to previous use cases,
+spending day and night browsing profiles and checking every single picture and video on each profile can make
+possible to identify if people has several different profiles. Let the AI help in this.
