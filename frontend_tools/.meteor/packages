@@ -1,0 +1,18 @@
+# Basic Meteor server/project container with iron router, without blaze templates
+meteor-base@1.5.1             # Packages every Meteor app needs to have
+iron:router                   # Used for server side routes, ignored on client side routes
+mobile-experience@1.1.0       # Packages for a great mobile UX (used by iron:router)
+ecmascript@0.16.0             # Enable ECMAScript2015+ syntax in app code
+mongo@1.13.0                   # The database Meteor supports right now
+
+# Meteor frontend
+blaze-html-templates@1.0.4    # Compile .html files into Meteor Blaze views
+reactive-var@1.0.11           # Reactive variable for tracker
+tracker@1.2.0
+meteorhacks:aggregate
+standard-minifier-css
+standard-minifier-js
+shell-server
+dynamic-import
+underscore@1.0.10
+jquery

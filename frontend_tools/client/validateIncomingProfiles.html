@@ -1,0 +1,82 @@
+<template name="validateIncomingProfilesTemplate">
+    <style>
+    body {
+        margin: 0px;
+        padding: 0px;
+        height: 100vh;
+        overflow-y: hidden;
+    }
+    h1 {
+        margin: 0px;
+    }
+    .container {
+        display: flex;  
+        margin: 0px;
+        padding: 0px;
+    }
+    .leftcol {
+        text-align: left;
+        width: 640px;
+        height: 100vh;
+        margin: 0px;
+        padding: 0px;
+        overflow-y: auto;
+    }
+    .rightcol {
+        padding: 0px 0px 0px 20px;
+        text-align: left;
+        height: 100vh;
+        overflow-y: auto;
+    }
+    #previewsArea {
+        padding: 0px 0px 0px 0px;
+        display: inline-table;
+    }
+    #mainImage {
+        width: 640px;
+    }
+    #imageData {
+        margin: 0px;
+        padding: 0px;
+    }
+    .previewImage {
+        vertical-align: top;
+        margin: 5px;
+    }
+    #nextButton {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        width: 120px;
+        height: 120px;
+    }
+    #prevButton {
+        position: absolute;
+        right: 150px;
+        bottom: 10px;
+        width: 120px;
+        height: 120px;
+    }
+    </style>
+
+    <div class="container">
+        <span class="leftcol">
+            <p id="imageData">
+	        Image info: <a href="{{selectedImage.url}}">source</a>
+	        <br>
+	        Published: {{selectedImageDateFormatted}}
+	    </p>
+            <img id="mainImage" src={{selectedImage.localUrl}}>
+        </span>
+        <span class="rightcol">
+          <h1>Profile: <a href="https://co.mileroticos.com/{{selectedProfileInfo.lastService}}/{{selectedProfileInfo.p}}">{{selectedProfileInfo.p}}</a> ({{selectedProfileIndex}}/{{profileInfo.length}})</h1>
+	    <div id="previewsArea">
+                {{#each profileDataset.images}}
+                    <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
+		{{/each}}
+            </div>
+	    <button id="prevButton">PREV</button>
+	    <button id="nextButton">NEXT</button>
+        </span>
+    </div>
+</template>

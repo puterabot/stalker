@@ -1,0 +1,80 @@
+package era.put.building;
+
+import com.mongodb.client.MongoCollection;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+
+import java.io.*;
+import java.net.URL;
+
+public class ImageDownloader {
+    private static final String DOWNLOAD_PATH = "/home/jedilink/downloadMileroticos";
+
+    private static boolean downloadImageFromNet(String absolutePath, String url, PrintStream out) {
+        String subUrl = url.replace("https://static1.mileroticos.com/photos/d/", "");
+        out.println("    . " + subUrl);
+        try {
+            BufferedInputStream inputStream = new BufferedInputStream(new URL(url).openStream());
+            FileOutputStream fileOS = new FileOutputStream(absolutePath);
+            byte data[] = new byte[1024];
+            int byteContent;
+            while ((byteContent = inputStream.read(data, 0, 1024)) != -1) {
+                fileOS.write(data, 0, byteContent);
+            }
+            return true;
+        } catch (IOException e) {
+            out.println("ERROR: Can not download image");
+            return false;
+        }
+    }
+
+    public static String imageFilename(Document imageObject, PrintStream out) {
+        String _id = ((ObjectId) imageObject.get("_id")).toString();
+        int l = _id.length();
+        String subfolder = _id.substring(l - 2, l);
+
+        // Check folders
+        File root = new File(DOWNLOAD_PATH);
+        if (root == null || !root.isDirectory()) {
+            out.println("ERROR: Can not write to " + DOWNLOAD_PATH);
+            System.exit(121);
+        }
+
+        // Do subfolder
+        File d = new File(DOWNLOAD_PATH + "/" + subfolder);
+        if (d != null && d.exists() && !d.isDirectory()) {
+            out.println("ERROR: Can not write to " + DOWNLOAD_PATH + "/" + subfolder);
+            System.exit(122);
+        }
+        if (d == null || !d.exists()) {
+            d.mkdir();
+            d = new File(DOWNLOAD_PATH + "/" + subfolder);
+            if (d != null && !d.isDirectory()) {
+                out.println("ERROR: Can not verify write to " + DOWNLOAD_PATH + "/" + subfolder);
+                System.exit(123);
+            }
+        }
+
+        return d.getAbsolutePath() + "/" + _id + ".jpg";
+    }
+
+    public static boolean downloadImageIfNeeded(Document imageObject, MongoCollection<Document> image, PrintStream out) {
+        if (!(imageObject.get("d") == null || imageObject.getBoolean("d") == true)) {
+            return false;
+        }
+        String url = imageObject.getString("url");
+        String imageFile = imageFilename(imageObject, out);
+
+        File fd = new File(imageFile);
+        if (fd.exists() && fd.isFile()) {
+            return false;
+        }
+
+        boolean status = downloadImageFromNet(imageFile, url, out);
+        Document o = new Document().append("_id", imageObject.get("_id"));
+        Document newDocument = new Document().append("d", status);
+        Document query = new Document().append("$set", newDocument);
+        image.updateOne(o, query);
+        return true;
+    }
+}
