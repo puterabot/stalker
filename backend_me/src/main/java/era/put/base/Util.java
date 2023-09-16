@@ -37,6 +37,7 @@ public class Util {
     private static String MONGO_SERVER;
     private static String MONGO_USER;
     private static String MONGO_PASSWORD;
+    private static String MONGO_DATABASE;
     private static int MONGO_PORT;
 
     static {
@@ -52,11 +53,13 @@ public class Util {
             MONGO_PORT = Integer.parseInt(properties.getProperty("mongo.port"));
             MONGO_USER = properties.getProperty("mongo.user");
             MONGO_PASSWORD = properties.getProperty("mongo.password");
+            MONGO_DATABASE = properties.getProperty("mongo.database");
         } catch (Exception e) {
             MONGO_SERVER = "127.0.0.1";
             MONGO_PORT = 27017;
             MONGO_USER="root";
             MONGO_PASSWORD="putPasswordOnApplicationProperties";
+            MONGO_DATABASE="scraper_me";
         }
     }
 
@@ -71,7 +74,7 @@ public class Util {
                 .applyConnectionString(cs)
                 .build();
             MongoClient mongoClient = MongoClients.create(settings);
-            MongoDatabase database = mongoClient.getDatabase("mileroticos");
+            MongoDatabase database = mongoClient.getDatabase(MONGO_DATABASE);
             mongoConnection.profile = database.getCollection("profile");
             mongoConnection.profileInfo = database.getCollection("profileInfo");
             mongoConnection.post = database.getCollection("post");

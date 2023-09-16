@@ -54,3 +54,61 @@ Use the AI tools to do that, and notify you via whatsapp messages when the profi
 A social media app usually allows people to open several accounts / profiles. Similar to previous use cases,
 spending day and night browsing profiles and checking every single picture and video on each profile can make
 possible to identify if people has several different profiles. Let the AI help in this.
+
+## Installation
+
+### Supported backend environment
+
+This software has been only tested on GNU/Linux Ubuntu 22.04 on Intel/AMD x86 machines. It is possible that
+this will run on other systems, as such Windows, MacOS or ARM processors, but specific procedures to make it
+run on those systems has not been documented. For the rest of this readme, only this platform is documented.
+
+### Set up a mongo database
+
+On old computers not supporting the AVX processor instructions, an old mongo version (as such 4.4.24) should
+be installed. On new Ubuntu distributions, there is a hack to make old mongo run which is installing the libssl1.1
+from an old linux distribution.
+
+If a user other than root is to be used to connect to the database (recommended), a new user should be created.
+Use the root user on mongo to create a new user:
+
+```
+db.createUser(
+    { 
+        user: "theUser",
+        pwd:  "thePwd",
+        roles:
+        [
+            {
+                role:"readWrite",
+                db:"theDb"
+            }
+        ]
+    }
+);
+```
+
+After this, using the user account, verify database is accepting connections:
+
+```
+mongo --host localhost -u theUser -p thePwd --authenticationDatabase admin theDb
+```
+
+### Starting up the scraper engine backend
+
+Create an `./backend_me/src/main/application.properties` file and add the configuration lines with your database
+credentials.
+
+```
+mongo.server=127.0.0.1
+mongo.port=27017
+mongo.user=theUser
+mongo.password=thePwd
+mongo.database=theDb
+```
+
+Project can be imported on a IDE development tool as such Intellij or executed from the command line using gradle:
+
+```
+./gradlew run
+```
