@@ -33,7 +33,7 @@ public class ImageDownloader {
 
     private static boolean downloadImageFromNet(String absolutePath, String url, PrintStream out) {
         String subUrl = url.replace("https://static1.mileroticos.com/photos/d/", "");
-        out.println("    . " + subUrl);
+        out.println("    . " + subUrl + " -> " + absolutePath);
         try {
             BufferedInputStream inputStream = new BufferedInputStream(new URL(url).openStream());
             FileOutputStream fileOS = new FileOutputStream(absolutePath);

@@ -97,7 +97,7 @@ public class Util {
     }
 
     public static void closeDialogs(WebDriver d) {
-        delay(500);
+        delay(100);
         try {
             WebElement e = d.findElement(By.id("ue-accept-button-accept"));
             if (e != null) {

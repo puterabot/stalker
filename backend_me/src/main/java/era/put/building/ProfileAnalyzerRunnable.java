@@ -190,7 +190,6 @@ public class ProfileAnalyzerRunnable implements Runnable {
 
     private Set<String>
     extractImages(WebDriver d) {
-
         Util.scrollDownPage(d);
         int sc = screenshootCounter % 100;
         String msg = String.format("/tmp/screenshot%03d.jpg", sc);
@@ -555,7 +554,8 @@ public class ProfileAnalyzerRunnable implements Runnable {
             while ((i = availableProfileComputeElements.poll()) != null) {
                 Document filter = new Document().append("i", i);
                 Document p = mongoConnection.post.find(filter).first();
-                if (p == null || p.get("d") != null) {
+                if (p == null || p.get("p") != null) {
+                    logger.info("Not processing post " + p.getString("url"));
                     continue;
                 }
 
