@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 // Mongo
 import com.mongodb.BasicDBObject;
+import com.mongodb.client.model.Filters;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -22,31 +23,34 @@ import era.put.base.Configuration;
 import era.put.base.ConfigurationColombia;
 import era.put.base.MongoConnection;
 import era.put.base.Util;
-import era.put.building.*;
+import era.put.building.FileToolReport;
+import era.put.building.Fixes;
+import era.put.building.ImageAnalyser;
+import era.put.building.ParallelWorksetBuilders;
+import era.put.building.ProfileAnalyzerRunnable;
+import era.put.building.PostAnalyzerRunnable;
+import era.put.building.PostSearchElement;
+import era.put.building.PostComputeElement;
+import era.put.building.PostSearcherRunnable;
+import era.put.building.RepeatedImageDetector;
 import era.put.interleaving.ImageInterleaver;
 import era.put.interleaving.PostInterleaver;
 import era.put.interleaving.ProfileInfoInterleaver;
 import era.put.mining.ImageInfo;
 
-import static com.mongodb.client.model.Filters.exists;
-
-/**
- * TODO: Similar project to this to browse "SKOKKA"
- */
-
 public class MeBotSeleniumApp {
     private static final Logger logger = LogManager.getLogger(MeBotSeleniumApp.class);
 
     private static final int NUMBER_OF_LIST_THREADS = 1; // 32;
-    private static final int NUMBER_OF_PROFILE_THREADS = 1; // 24;
     private static final int NUMBER_OF_SEARCH_THREADS = 1; // 48;
+    private static final int NUMBER_OF_PROFILE_THREADS = 1; // 24;
 
-    /*
-    time findimagedupes -t 99.9% -f /tmp/db.bin -R . > /tmp/groups.txt
-    288min (5h)
-    */
+    private static void processNotDownloadedProfiles(Configuration c) throws InterruptedException {
+        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        if (mongoConnection == null) {
+            return;
+        }
 
-    private static void processNotDownloadedProfiles(MongoConnection mongoConnection, Configuration c) throws InterruptedException {
         List<Thread> threads;
         ConcurrentLinkedQueue<Integer> availableProfileComputeElements = ParallelWorksetBuilders.buildProfileComputeSet(mongoConnection);
 
@@ -63,21 +67,30 @@ public class MeBotSeleniumApp {
         }
 
         // Wait for threads to end
-        System.out.println("Waiting for profile threads to end...");
         for (Thread t: threads) {
             t.join();
         }
+        System.out.println("New profiles downloaded, timestamp: " + new Date());
     }
 
-    private static void processProfileInDepthSearch(MongoConnection mongoConnection, Configuration c)
+    /**
+     *
+     * @param c
+     * @throws InterruptedException
+     */
+    private static void processProfileInDepthSearch(Configuration c)
             throws InterruptedException {
+        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        if (mongoConnection == null) {
+            return;
+        }
+
         List<Thread> threads;
         ConcurrentLinkedQueue<PostSearchElement> searchElements = ParallelWorksetBuilders.buildSearchStringsForExistingProfiles(mongoConnection, c);
 
-        System.out.println("NUMBER OF SEARCH URLS DOWNLOAD: " + searchElements.size());
+        System.out.println("NUMBER OF SEARCH URLS TO DOWNLOAD: " + searchElements.size());
 
         // Create and launch listing threads
-        System.out.println("Starting " + NUMBER_OF_SEARCH_THREADS + " search threads. Individual logs in ./log folder");
         threads = new ArrayList<>();
         for (int i = 0; i < NUMBER_OF_SEARCH_THREADS; i++) {
             Thread t = new Thread(new PostSearcherRunnable(searchElements, i, c));
@@ -87,20 +100,27 @@ public class MeBotSeleniumApp {
         }
 
         // Wait for threads to end
-        System.out.println("Waiting for list threads to end...");
         for (Thread t: threads) {
             t.join();
         }
-        System.out.println("Threads OK");
     }
 
+    /**
+     * This method traverses the m.e. pages from the regions listed on configuration.
+     * Situation before:
+     * - Collection post in database is empty or containing only old posts.
+     * Situation after:
+     * - New posts are added to post collection, with p (processed) flag undefined, for further
+     *   information to be download later.
+     * @param c
+     * @throws InterruptedException
+     */
     private static void processPostListings(Configuration c) throws InterruptedException {
         List<Thread> threads;// 1. List profiles
         ConcurrentLinkedQueue<PostComputeElement> availableListComputeElements;
         availableListComputeElements = ParallelWorksetBuilders.buildListingComputeSet(new ConfigurationColombia());
 
         // Create and launch listing threads
-        System.out.println("Starting " + NUMBER_OF_LIST_THREADS + " post list threads. Individual logs in ./log folder");
         threads = new ArrayList<>();
         for (int i = 0; i < NUMBER_OF_LIST_THREADS; i++) {
             Thread t = new Thread(new PostAnalyzerRunnable(availableListComputeElements, c, i));
@@ -110,16 +130,21 @@ public class MeBotSeleniumApp {
         }
 
         // Wait for threads to end
-        System.out.println("Waiting for list threads to end...");
         for (Thread t: threads) {
             t.join();
         }
-        System.out.println("Threads OK");
+
+        System.out.println("Post listings downloaded, timestamp: " + new Date());
     }
 
-    private static void processImages(MongoConnection mongoConnection, Configuration c) throws Exception {
+    private static void processImages(Configuration c) throws Exception {
+        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        if (mongoConnection == null) {
+            return;
+        }
+
         // Update image date if not present
-        for (Document i: mongoConnection.image.find(exists("md", false))) {
+        for (Document i: mongoConnection.image.find(Filters.exists("md", false))) {
             ImageAnalyser.updateDate(mongoConnection.image, i, c);
         }
 
@@ -137,47 +162,55 @@ public class MeBotSeleniumApp {
         RepeatedImageDetector.groupImages(mongoConnection.image);
     }
 
+    private static void fixDatabaseCollections() throws Exception {
+        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        if (mongoConnection == null) {
+            return;
+        }
+
+        Fixes.fixPostCollection(mongoConnection.post);
+        Fixes.fixRelationships(mongoConnection);
+    }
+
+    private static void mainSequence() throws Exception {
+        // 0. Global init
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+        root.setLevel(Level.OFF);
+
+        System.out.println("Application started, timestamp: " + new Date());
+        Configuration c = new ConfigurationColombia();
+
+        // 1. Download new post urls from list pages and store them by id on post database collection
+        processPostListings(c);
+
+        // 2. Download known profiles in depth
+        //processProfileInDepthSearch(c);
+
+        // 3. Download new profiles detail
+        processNotDownloadedProfiles(c);
+
+        // 4. Analise images on disk
+        //processImages(c);
+
+        // 5. Execute fixes
+        //fixDatabaseCollections();
+
+        // 6. Print some dataset trivia
+        //ImageInfo.reportProfilesWithCommonImages();
+
+        // 7. Build extended information
+        //ImageInterleaver.createP0References(System.out);
+        //PostInterleaver.linkPostsToProfiles(System.out);
+        //ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
+        //System.out.println("Interleaving timestamp: " + new Date());
+
+        // 8. Close
+        System.out.println("Program ended, timestamp: " + new Date());
+
+    }
     public static void main(String[] args) {
         try {
-            // 0. Global init
-            ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
-            root.setLevel(Level.OFF);
-            System.out.println("Start timestamp: " + new Date());
-            Configuration c = new ConfigurationColombia();
-
-            // 1. Download new post urls from list pages and store them by id on post database collection
-            processPostListings(c);
-            System.out.println("List timestamp: " + new Date());
-
-            // 2. Download known profiles in depth
-            MongoConnection mongoConnection = Util.connectWithMongoDatabase();
-            if (mongoConnection == null) {
-                return;
-            }
-            processProfileInDepthSearch(mongoConnection, c);
-
-            // 2. Download new profiles detail
-            processNotDownloadedProfiles(mongoConnection, c);
-            System.out.println("Profile timestamp: " + new Date());
-
-            // 4. Analise images on disk
-            processImages(mongoConnection, c);
-
-            // 5. Execute fixes
-            Fixes.fixPostCollection(mongoConnection.post);
-            Fixes.fixRelationships(mongoConnection);
-
-            // 6. Print some dataset trivia
-            ImageInfo.reportProfilesWithCommonImages(mongoConnection.image, mongoConnection.profile);
-
-            // 7. Build extended information
-            ImageInterleaver.createP0References(mongoConnection, System.out);
-            PostInterleaver.linkPostsToProfiles(mongoConnection, System.out);
-            ProfileInfoInterleaver.createExtendedProfileInfo(mongoConnection, new PrintStream("./log/userStats.csv"));
-            System.out.println("Interleaving timestamp: " + new Date());
-
-            // 8. Close
-            System.out.println("Fix timestamp: " + new Date());
+            mainSequence();
         } catch (Exception e) {
             logger.error(e);
         }

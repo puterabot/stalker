@@ -2,6 +2,7 @@ package era.put.mining;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.client.MongoCollection;
+import era.put.base.MongoConnection;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.Util;
@@ -95,11 +96,16 @@ public class ImageInfo {
      * Test disabled: previous results are empty.
      */
     public static void
-    reportProfilesWithCommonImages(MongoCollection<Document> image, MongoCollection<Document> profile) {
+    reportProfilesWithCommonImages() {
+        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        if (mongoConnection == null) {
+            return;
+        }
+
         System.out.println("= DETECTING REPEATED IMAGES ACROSS PROFILES ==========================================");
         Document filter = new Document().append("x", true);
-        for (Document i: image.find(filter).sort(new BasicDBObject("md", 1))) {
-            reportProfilesWithCommonImagesForPivot(image, profile, i);
+        for (Document i: mongoConnection.image.find(filter).sort(new BasicDBObject("md", 1))) {
+            reportProfilesWithCommonImagesForPivot(mongoConnection.image, mongoConnection.profile, i);
         }
         System.out.println("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
     }

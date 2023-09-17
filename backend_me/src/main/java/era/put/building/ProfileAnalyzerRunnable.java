@@ -1,5 +1,10 @@
 package era.put.building;
 
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import era.put.base.Configuration;
+import era.put.base.MongoConnection;
+import era.put.base.Util;
 import java.io.File;
 import java.io.PrintStream;
 import java.time.ZoneId;
@@ -7,27 +12,26 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.TreeSet;
+import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import org.openqa.selenium.By;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
-import era.put.base.Configuration;
-import era.put.base.MongoConnection;
-import era.put.base.Util;
 
 public class ProfileAnalyzerRunnable implements Runnable {
+    private static final Logger logger = LogManager.getLogger(ProfileAnalyzerRunnable.class);
     private ConcurrentLinkedQueue<Integer> availableProfileComputeElements;
     private int id;
     private PrintStream out;
     private Configuration c;
+    private int screenshootCounter = 0;
 
     public ProfileAnalyzerRunnable(ConcurrentLinkedQueue<Integer> availableProfileComputeElements, int id, Configuration c) {
         this.availableProfileComputeElements = availableProfileComputeElements;
@@ -37,15 +41,16 @@ public class ProfileAnalyzerRunnable implements Runnable {
 
     private int
     monthIndex(String name) {
-        String[] names = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"};
+        String[] enNames = {"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"};
+        String[] esNames = {"ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"};
 
         if (name == null || name.length() < 3) {
             return -1;
         }
 
-        int i;
-        for (i = 0; i < 12; i++) {
-            if (name.toLowerCase().startsWith(names[i])) {
+        for (int i = 0; i < 12; i++) {
+            if (name.toLowerCase().startsWith(enNames[i])
+            || name.toLowerCase().startsWith(esNames[i])) {
                 return i + 1;
             }
         }
@@ -114,7 +119,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
     private String extractPhoneNumber(WebDriver d) {
         WebElement tel;
         try {
-            tel = d.findElement(By.className("fog-tel"));
+            tel = d.findElement(By.className("fog-tel-stats"));
             if (tel == null || tel.getText() == null || tel.getText().isEmpty()) {
                 tel = d.findElement(By.className("tel-no-prepayment"));
                 if (tel == null || tel.getText() == null || tel.getText().isEmpty()) {
@@ -162,7 +167,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
     extractWhatsappPromise(WebDriver d) {
         WebElement w;
         try {
-            w = d.findElement(By.className("fog-whatsapp"));
+            w = d.findElement(By.className("fog-whatsapp-stats"));
             return w != null;
         } catch (NoSuchElementException e) {
             return false;
@@ -183,11 +188,14 @@ public class ProfileAnalyzerRunnable implements Runnable {
         }
     }
 
-    private List<String>
+    private Set<String>
     extractImages(WebDriver d) {
 
         Util.scrollDownPage(d);
-        Util.fullPageScreenShot(d, "/tmp/screenshot.jpg");
+        int sc = screenshootCounter % 100;
+        String msg = String.format("/tmp/screenshot%03d.jpg", sc);
+        Util.fullPageScreenShot(d, msg);
+        screenshootCounter++;
 
         List<WebElement> wl;
         try {
@@ -197,7 +205,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
                 return null;
             }
 
-            List<String> l = new ArrayList<>();
+            Set<String> l = new TreeSet<>();
             for (WebElement w: wl) {
                 WebElement img = w.findElement(By.tagName("img"));
                 if (img != null) {
@@ -366,10 +374,10 @@ public class ProfileAnalyzerRunnable implements Runnable {
 
         String description = extractDescription(d);
 
-        List<String> imageUrls = extractImages(d);
+        Set<String> imageUrls = extractImages(d);
 
         if (imageUrls == null) {
-            out.println("SKIP AFTER NULL IMAGES " + d.getCurrentUrl());
+            out.println("SKIP POST WITH NO IMAGES " + d.getCurrentUrl());
             skipProfile(p, mongoConnection.post);
             return;
         }
@@ -383,7 +391,8 @@ public class ProfileAnalyzerRunnable implements Runnable {
         boolean hasPhone = (phone != null) && !phone.isEmpty();
 
         if (!hasPhone) {
-            out.println("No tel " + d.getCurrentUrl());
+            out.println("SKIP POST WITH NO TEL: " + d.getCurrentUrl());
+            skipProfile(p, mongoConnection.post);
         } else {
             out.println("TEL: " + phone);
             out.println("  - Source url: " + d.getCurrentUrl());
@@ -530,6 +539,10 @@ public class ProfileAnalyzerRunnable implements Runnable {
     processPendingProfiles(Configuration c) {
         try {
             WebDriver d = Util.initWebDriver(c);
+            if (d == null) {
+                logger.error("Can not connect to web browser. ABORTING.");
+                System.exit(9);
+            }
             Util.login(d, c);
             out = createPrintStream();
 

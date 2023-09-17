@@ -1,14 +1,35 @@
 package era.put.building;
 
 import com.mongodb.client.MongoCollection;
+import era.put.base.Util;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.net.URL;
+import java.util.Properties;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
-import java.io.*;
-import java.net.URL;
-
 public class ImageDownloader {
-    private static final String DOWNLOAD_PATH = "/home/jedilink/downloadMileroticos";
+    private static String ME_IMAGE_DOWNLOAD_PATH;
+
+    static {
+        try {
+            ClassLoader classLoader = Util.class.getClassLoader();
+            InputStream input = classLoader.getResourceAsStream("application.properties");
+            if (input == null) {
+                throw new Exception("application.properties not found on classpath");
+            }
+            Properties properties = new Properties();
+            properties.load(input);
+            ME_IMAGE_DOWNLOAD_PATH = properties.getProperty("me.image.download.path");
+        } catch (Exception e) {
+            ME_IMAGE_DOWNLOAD_PATH = "/tmp";
+        }
+    }
 
     private static boolean downloadImageFromNet(String absolutePath, String url, PrintStream out) {
         String subUrl = url.replace("https://static1.mileroticos.com/photos/d/", "");
@@ -34,23 +55,23 @@ public class ImageDownloader {
         String subfolder = _id.substring(l - 2, l);
 
         // Check folders
-        File root = new File(DOWNLOAD_PATH);
+        File root = new File(ME_IMAGE_DOWNLOAD_PATH);
         if (root == null || !root.isDirectory()) {
-            out.println("ERROR: Can not write to " + DOWNLOAD_PATH);
+            out.println("ERROR: Can not write to " + ME_IMAGE_DOWNLOAD_PATH);
             System.exit(121);
         }
 
         // Do subfolder
-        File d = new File(DOWNLOAD_PATH + "/" + subfolder);
+        File d = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
         if (d != null && d.exists() && !d.isDirectory()) {
-            out.println("ERROR: Can not write to " + DOWNLOAD_PATH + "/" + subfolder);
+            out.println("ERROR: Can not write to " + ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
             System.exit(122);
         }
         if (d == null || !d.exists()) {
             d.mkdir();
-            d = new File(DOWNLOAD_PATH + "/" + subfolder);
+            d = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
             if (d != null && !d.isDirectory()) {
-                out.println("ERROR: Can not verify write to " + DOWNLOAD_PATH + "/" + subfolder);
+                out.println("ERROR: Can not verify write to " + ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
                 System.exit(123);
             }
         }

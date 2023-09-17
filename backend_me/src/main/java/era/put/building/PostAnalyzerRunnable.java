@@ -13,7 +13,7 @@ import java.util.Date;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class PostAnalyzerRunnable implements Runnable {
-    private static final Logger logger = LogManager.getLogger(MeBotSeleniumApp.class);
+    private static final Logger logger = LogManager.getLogger(PostAnalyzerRunnable.class);
     private static ConcurrentLinkedQueue<PostComputeElement> availableListComputeElements;
     private final int id;
     private final Configuration c;
@@ -35,6 +35,12 @@ public class PostAnalyzerRunnable implements Runnable {
     public void run() {
         try {
             WebDriver driver = Util.initWebDriver(c);
+
+            if (driver == null) {
+                logger.error("Can not create connection with browser. ABORTING.");
+                System.exit(9);
+            }
+
             Util.login(driver, c);
 
             MongoConnection mongoConnection = Util.connectWithMongoDatabase();

@@ -33,8 +33,8 @@ public class ParallelWorksetBuilders {
     }
 
     /**
-     * This generates URLs for searching current profiles in-depth.
-     */
+    This generates URLs for searching current profiles in-depth.
+    */
     public static ConcurrentLinkedQueue<PostSearchElement> buildSearchStringsForExistingProfiles(
         MongoConnection mongoConnection,
         Configuration c) {

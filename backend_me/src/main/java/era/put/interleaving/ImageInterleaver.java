@@ -2,6 +2,7 @@ package era.put.interleaving;
 
 import com.mongodb.MongoCursorNotFoundException;
 import com.mongodb.MongoTimeoutException;
+import era.put.base.Util;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.MongoConnection;
@@ -36,8 +37,13 @@ public class ImageInterleaver {
         }
     }
 
-    public static void createP0References(MongoConnection c, PrintStream out) {
+    public static void createP0References(PrintStream out) {
         try {
+            MongoConnection c = Util.connectWithMongoDatabase();
+            if (c == null) {
+                return;
+            }
+
             out.println("= CREATING P0 REFERENCES =========================");
 
             for (Document i: c.image.find(exists("p0", false))) {

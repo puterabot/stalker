@@ -14,7 +14,7 @@ This system connects to a mongodb database called `mileroticos` and uses the fol
   - **p**: already processed flag:
      . non-existent: pending to process
      . true: imported ok, profile and image information expected
-     . false: imported with error, no profile found
+     . false: imported with error, no profile found or profile skipped due to not having images
   - **d**: description text (can be non-existent)
   - **u**: identified user profile
      . non-existent: to process

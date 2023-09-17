@@ -12,8 +12,13 @@ import java.io.PrintStream;
 import static com.mongodb.client.model.Filters.exists;
 
 public class PostInterleaver {
-    public static void linkPostsToProfiles(MongoConnection c, PrintStream out) {
+    public static void linkPostsToProfiles(PrintStream out) {
         try {
+            MongoConnection c = Util.connectWithMongoDatabase();
+            if (c == null) {
+                return;
+            }
+
             out.println("= LINKING POSTS TO PROFILES =========================");
             int count = 0;
             for (Document post: c.post.find(exists("u", false))) {

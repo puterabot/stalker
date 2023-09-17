@@ -13,8 +13,13 @@ import java.util.ArrayList;
 import java.util.Date;
 
 public class ProfileInfoInterleaver {
-    public static void createExtendedProfileInfo(MongoConnection c, PrintStream out) {
+    public static void createExtendedProfileInfo(PrintStream out) {
         try {
+            MongoConnection c = Util.connectWithMongoDatabase();
+            if (c == null) {
+                return;
+            }
+
             System.out.println("= POPULATING EXTENDED PROFILE INFO =========================");
             System.out.println("Populating start timestamp: " + new Date());
 

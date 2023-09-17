@@ -15,7 +15,10 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
+import era.put.MeBotSeleniumApp;
 import org.apache.commons.io.FileUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
@@ -32,6 +35,7 @@ import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
 public class Util {
+    private static final Logger logger = LogManager.getLogger(Util.class);
     private static int DRIVER = 2;
     private static String CHROME_PROFILE_PATH = "/home/jedilink/.config/chromium"; // From chrome://version/
     private static String MONGO_SERVER;
@@ -145,21 +149,30 @@ public class Util {
     }
 
     public static WebDriver initWebDriver(Configuration conf) {
-        System.setProperty("webdriver.chrome.silentOutput", "false");
-        //String CHROME_PROFILE_PATH = "/home/jedilink/.cache/google-chrome/Default";
-        if (DRIVER == 2) {
-            ChromeOptions options = new ChromeOptions();
-            options.addArguments("--user-data-dir=" + CHROME_PROFILE_PATH); // Not thread safe
-            options.addArguments("--log-level=3");
-            options.addArguments("--silent");
-            //options.addArguments("--user-agent=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36");
-            if (conf.useHeadlessBrowser()) {
-                options.setHeadless(true);
+        try {
+            System.setProperty("webdriver.chrome.silentOutput", "false");
+            System.setProperty("webdriver.chrome.driver", "/usr/local/chromedriver-linux64/chromedriver");
+
+            if (DRIVER == 2) {
+                ChromeOptions options = new ChromeOptions();
+                options.addArguments("--user-data-dir=" + CHROME_PROFILE_PATH); // Not thread safe
+                options.addArguments("--log-level=3");
+                options.addArguments("--disable-extensions");
+                options.addArguments("--silent");
+                options.addArguments("--no-sandbox");
+                options.addArguments("--disable-dev-shm-usage");
+                if (conf.useHeadlessBrowser()) {
+                    options.setHeadless(true);
+                }
+                return new ChromeDriver(options);
+            } else {
+                System.out.println("Error: firefox not supported");
+                System.exit(1);
             }
-            return new ChromeDriver(options);
-        } else {
-            System.out.println("Error: firefox not supported");
-            System.exit(1);
+        } catch (Exception e) {
+            logger.error(e);
+            logger.info("Error creating web driver, ABORTING.");
+            System.exit(0);
         }
         return null;
     }

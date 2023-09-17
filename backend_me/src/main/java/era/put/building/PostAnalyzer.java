@@ -31,7 +31,8 @@ public class PostAnalyzer {
         List<WebElement> l = d.findElements(By.className("thumbail"));
         //boolean orig = true;
 
-        out.print("Page " + pageCount + ": ");
+        String msg = String.format("Page %02d : ", pageCount);
+        out.print(msg);
         for (WebElement e: l) {
             WebElement a = e.findElement(By.tagName("a"));
             if (a == null) {
