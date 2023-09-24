@@ -234,6 +234,8 @@ public class MeBotSeleniumApp {
                 cleanUp();
             }));
 
+            Thread.currentThread().setName("MAIN_THREAD");
+
             mainSequence();
         } catch (Exception e) {
             logger.error(e);

@@ -539,11 +539,13 @@ public class ProfileAnalyzerRunnable implements Runnable {
     public void
     processPendingProfiles(Configuration c) {
         try {
-            WebDriver d = Util.initWebDriver(c);
-            if (d == null) {
+            logger.info("Starting processPendingProfiles.");
+            Util.delay(4000);
+            WebDriver webDriver = Util.initWebDriver(c);
+            if (webDriver == null) {
                 Util.exitProgram("Can not connect to web browser.");
             }
-            Util.login(d, c);
+            Util.login(webDriver, c);
             out = createPrintStream();
 
             MongoConnection mongoConnection = Util.connectWithMongoDatabase();
@@ -562,12 +564,12 @@ public class ProfileAnalyzerRunnable implements Runnable {
 
                 String url = p.getString("url");
                 if (url != null) {
-                    d.get(url);
-                    MeBotSeleniumApp.panicCheck(d);
-                    processProfilePage(d, p, mongoConnection, c);
+                    webDriver.get(url);
+                    MeBotSeleniumApp.panicCheck(webDriver);
+                    processProfilePage(webDriver, p, mongoConnection, c);
                 }
             }
-            Util.closeWebDriver(d);
+            Util.closeWebDriver(webDriver);
         } catch (Exception e) {
             MongoConnection mongoConnection = Util.connectWithMongoDatabase();
             if (mongoConnection == null) {

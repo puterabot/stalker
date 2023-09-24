@@ -275,7 +275,6 @@ public class Util {
 
     public static void printCurrentStackTrace() {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        logger.info("Stack trace for thread [" + Thread.currentThread().getName() + "]:");
         for (StackTraceElement element : stackTrace) {
             logger.info(element.getClassName() + "." + element.getMethodName()
                     + "(" + element.getFileName() + ":" + element.getLineNumber() + ")");
@@ -288,6 +287,5 @@ public class Util {
             logger.info("Web driver already closed.");
         }
         printCurrentStackTrace();
-        Util.closeWebDriver(webDriver);
     }
 }
