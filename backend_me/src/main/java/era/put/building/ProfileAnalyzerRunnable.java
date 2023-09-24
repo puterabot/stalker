@@ -2,6 +2,7 @@ package era.put.building;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
+import era.put.MeBotSeleniumApp;
 import era.put.base.Configuration;
 import era.put.base.MongoConnection;
 import era.put.base.Util;
@@ -193,7 +194,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
         Util.scrollDownPage(d);
         int sc = screenshootCounter % 100;
         String msg = String.format("/tmp/screenshot%03d.jpg", sc);
-        Util.fullPageScreenShot(d, msg);
+        //Util.fullPageScreenShot(d, msg);
         screenshootCounter++;
 
         List<WebElement> wl;
@@ -331,7 +332,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
         // Analyze candidate set
         TreeSet<String> validPhones = new TreeSet<>(); // Now handling only Colombia phones
         for (String s: phoneCandidates) {
-            out.println("**** -> " + s + " N: " + s.length());
+            // Note: this is a particular logic for phones at Colombia, will not scale to other coyntries
             if (s.length() == 10 && s.startsWith("3")) {
                 validPhones.add(s);
             }
@@ -393,11 +394,12 @@ public class ProfileAnalyzerRunnable implements Runnable {
             out.println("SKIP POST WITH NO TEL: " + d.getCurrentUrl());
             skipProfile(p, mongoConnection.post);
         } else {
+            int n = Math.min(60, description.length());
             out.println("TEL: " + phone);
             out.println("  - Source url: " + d.getCurrentUrl());
             out.println("  - Date: " + date);
             out.println("  - Whatsapp promise: " + (whatsappPromiseFlag ? "yes" : "no"));
-            out.println("  - Description: " + (hasDescription ? description.substring(0, 60) + "... " : "<empty>"));
+            out.println("  - Description: " + (hasDescription ? description.substring(0, n) + "... " : "<empty>"));
             out.println("  - Images:" + imageUrls.size());
         }
 
@@ -539,8 +541,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
         try {
             WebDriver d = Util.initWebDriver(c);
             if (d == null) {
-                logger.error("Can not connect to web browser. ABORTING.");
-                System.exit(9);
+                Util.exitProgram("Can not connect to web browser.");
             }
             Util.login(d, c);
             out = createPrintStream();
@@ -562,10 +563,11 @@ public class ProfileAnalyzerRunnable implements Runnable {
                 String url = p.getString("url");
                 if (url != null) {
                     d.get(url);
+                    MeBotSeleniumApp.panicCheck(d);
                     processProfilePage(d, p, mongoConnection, c);
                 }
             }
-            d.close();
+            Util.closeWebDriver(d);
         } catch (Exception e) {
             MongoConnection mongoConnection = Util.connectWithMongoDatabase();
             if (mongoConnection == null) {

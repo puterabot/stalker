@@ -34,14 +34,13 @@ public class PostAnalyzerRunnable implements Runnable {
     @Override
     public void run() {
         try {
-            WebDriver driver = Util.initWebDriver(c);
+            WebDriver webDriver = Util.initWebDriver(c);
 
-            if (driver == null) {
-                logger.error("Can not create connection with browser. ABORTING.");
-                System.exit(9);
+            if (webDriver == null) {
+                Util.exitProgram("Can not create connection with browser.");
             }
 
-            Util.login(driver, c);
+            Util.login(webDriver, c);
 
             MongoConnection mongoConnection = Util.connectWithMongoDatabase();
             if (mongoConnection == null) {
@@ -53,13 +52,11 @@ public class PostAnalyzerRunnable implements Runnable {
             PostComputeElement e;
             while ((e = availableListComputeElements.poll()) != null) {
                 out.println("= SERVICE: " + e.service + ", REGION: " + e.region + " =====");
-
                 String url = "https://co.mileroticos.com/" + e.service + "/" + e.region;
-                driver.get(url);
-                Util.delay(5000); // TODO: Ramdomize between 5 - 10 seconds
-
+                webDriver.get(url);
+                Util.ramdomDelay(3000, 6000);
                 int i = 1;
-                while (PostAnalyzer.traverseListInCurrentPageAndGoNext(driver, mongoConnection.post, e.service, e.region, i, out)) {
+                while (PostAnalyzer.traverseListInCurrentPageAndGoNext(webDriver, mongoConnection.post, e.service, e.region, i, out)) {
                     i++;
                 }
             }
@@ -67,7 +64,7 @@ public class PostAnalyzerRunnable implements Runnable {
             out.println("= Ending list thread " + Thread.currentThread().getName() + " =====");
             out.println("End timestamp: " + new Date());
             System.out.println("  - Ending list thread " + Thread.currentThread().getName());
-            driver.close();
+            webDriver.close();
         } catch (Exception e) {
             logger.error(e);
         }

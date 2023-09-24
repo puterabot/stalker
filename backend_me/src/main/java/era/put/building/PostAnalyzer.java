@@ -56,8 +56,7 @@ public class PostAnalyzer {
             Document prev;
             Integer postId = Util.extractIdFromPostUrl(url);
             if (postId == null) {
-                out.println("ERROR: Unexpected post url " + url + " killing thread " + Thread.currentThread().getName());
-                //System.exit(666);
+                Util.exitProgram("ERROR: Unexpected post url " + url + " killing thread " + Thread.currentThread().getName());
                 Thread.currentThread().interrupt();
             }
 

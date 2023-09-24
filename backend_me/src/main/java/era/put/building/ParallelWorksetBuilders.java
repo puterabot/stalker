@@ -2,6 +2,7 @@ package era.put.building;
 
 import com.mongodb.BasicDBObject;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import org.bson.Document;
@@ -26,8 +27,14 @@ public class ParallelWorksetBuilders {
 
     public static ConcurrentLinkedQueue<Integer> buildProfileComputeSet(MongoConnection mongoConnection) {
         ConcurrentLinkedQueue<Integer> availableProfileComputeElements = new ConcurrentLinkedQueue<>();
+        List<Integer> linearOrder = new ArrayList<>();
         for (Document p : mongoConnection.post.find(exists("p", false))) {
-            availableProfileComputeElements.add(p.getInteger("i"));
+            linearOrder.add(p.getInteger("i"));
+        }
+
+        // Reverse order
+        for (int i = linearOrder.size() - 1; i >= 0; i--) {
+            availableProfileComputeElements.add(linearOrder.get(i));
         }
         return availableProfileComputeElements;
     }
@@ -39,6 +46,7 @@ public class ParallelWorksetBuilders {
         MongoConnection mongoConnection,
         Configuration c) {
         ConcurrentLinkedQueue<PostSearchElement> searchUrls = new ConcurrentLinkedQueue<>();
+        List<PostSearchElement> linearOrderUrls = new LinkedList<>();
 
         ArrayList<Document> conditionsArray = new ArrayList<>();
         conditionsArray.add(new Document("s", new BasicDBObject("$exists", false)));
@@ -55,7 +63,7 @@ public class ParallelWorksetBuilders {
                         .urls(urls)
                         .profileId(u.getObjectId("_id"))
                         .build();
-                searchUrls.add(e);
+                linearOrderUrls.add(e);
             }
         }
 

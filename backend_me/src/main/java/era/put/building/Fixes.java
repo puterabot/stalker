@@ -32,8 +32,7 @@ public class Fixes {
                     }
                 }
             } else if (x instanceof ObjectId) {
-                System.out.println("DIFFERENT: " + d.get("x").getClass().getName());
-                System.exit(1);
+                Util.exitProgram("DIFFERENT: " + d.get("x").getClass().getName());
             }
         }
         System.out.println("= DELETED " + count + " DANGLING FILES, " + pending + " PENDING TO DOWNLOAD =");

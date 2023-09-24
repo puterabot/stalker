@@ -71,30 +71,29 @@ public class MeCityListExtractorTool {
         }
     }
 
-    private static void mainFlow() throws Exception {
+    private static void mainFlow() {
         Configuration c = new ConfigurationColombia();
-        WebDriver driver = Util.initWebDriver(c);
+        WebDriver webDriver = Util.initWebDriver(c);
 
-        if (!(driver instanceof ChromeDriver)) {
+        if (!(webDriver instanceof ChromeDriver)) {
             logger.error("DevTools only available on Chrome/Chromium");
         }
 
-        if (driver == null) {
-            logger.error("Can not create connection with browser. ABORTING.");
-            System.exit(9);
+        if (webDriver == null) {
+            Util.exitProgram("Can not create connection with browser");
         }
 
-        Util.login(driver, c);
+        Util.login(webDriver, c);
 
-        WebElement dropDownRegionsMenuButton = driver.findElement(By.className("select2-selection--single"));
+        WebElement dropDownRegionsMenuButton = webDriver.findElement(By.className("select2-selection--single"));
         if (dropDownRegionsMenuButton == null) {
-            logger.error("Can not import regions from UI, no dropdown button. ABORTING.");
+            Util.exitProgram("Can not import regions from UI, no dropdown button.");
         }
         dropDownRegionsMenuButton.click();
         Util.delay(2000);
-        WebElement ulRegionsList = driver.findElement(By.id("select2-prompt_state-results"));
+        WebElement ulRegionsList = webDriver.findElement(By.id("select2-prompt_state-results"));
         if (ulRegionsList == null) {
-            logger.error("Can not import regions from UI, no regions list. ABORTING.");
+            Util.exitProgram("Can not import regions from UI, no regions list.");
         }
         List<WebElement> liRegions = ulRegionsList.findElements(By.tagName("li"));
         logger.info("Importing " + liRegions.size() + " regions:");
@@ -105,7 +104,7 @@ public class MeCityListExtractorTool {
             String regionName = normalize(li.getText());
             li.click();
             Util.delay(500);
-            traverseCitiesList(driver, regionName);
+            traverseCitiesList(webDriver, regionName);
             dropDownRegionsMenuButton.click();
             System.out.println("        \"" + regionName + "\",");
             Util.delay(500);
@@ -113,7 +112,7 @@ public class MeCityListExtractorTool {
             Util.delay(500);
         }
         System.out.println("================================================================");
-        driver.close();
+        Util.closeWebDriver(webDriver);
     }
 
     public static void main(String args[]) {

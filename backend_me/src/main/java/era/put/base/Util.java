@@ -1,12 +1,5 @@
 package era.put.base;
 
-import javax.imageio.ImageIO;
-import java.io.*;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Properties;
-import java.util.StringTokenizer;
-
 import com.mongodb.BasicDBObject;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
@@ -14,8 +7,19 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
-
 import era.put.MeBotSeleniumApp;
+import era.put.building.ImageFileAttributes;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Properties;
+import java.util.StringTokenizer;
+import java.util.Random;
+import javax.imageio.ImageIO;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,13 +27,17 @@ import org.bson.Document;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
 import org.bson.types.ObjectId;
-import org.openqa.selenium.*;
+import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import ru.yandex.qatools.ashot.AShot;
 import ru.yandex.qatools.ashot.Screenshot;
 import ru.yandex.qatools.ashot.shooting.ShootingStrategies;
-import era.put.building.ImageFileAttributes;
 
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
@@ -43,6 +51,7 @@ public class Util {
     private static String MONGO_PASSWORD;
     private static String MONGO_DATABASE;
     private static int MONGO_PORT;
+    private static final Random random = new Random();
 
     static {
         try {
@@ -108,6 +117,15 @@ public class Util {
         }
     }
 
+    public static void ramdomDelay(int minimum, int maximum) {
+        delay(minimum + random.nextInt(maximum - minimum));
+    }
+
+    public static void exitProgram(String msg) {
+        logger.info("ABORTING PROGRAM. Reason: [" + msg + "]");
+        printCurrentStackTrace();
+        System.exit(666);
+    }
     public static void delay(int ms) {
         try {
             Thread.sleep(ms);
@@ -164,15 +182,15 @@ public class Util {
                 if (conf.useHeadlessBrowser()) {
                     options.setHeadless(true);
                 }
-                return new ChromeDriver(options);
+                WebDriver driver = new ChromeDriver(options);
+                MeBotSeleniumApp.currentDrivers.add(driver);
+                return driver;
             } else {
-                System.out.println("Error: firefox not supported");
-                System.exit(1);
+                exitProgram("Firefox not supported");
             }
         } catch (Exception e) {
             logger.error(e);
-            logger.info("Error creating web driver, ABORTING.");
-            System.exit(0);
+            Util.exitProgram("Error creating web driver.");
         }
         return null;
     }
@@ -253,5 +271,23 @@ public class Util {
             js.executeScript("window.scrollTo(0, document.body.scrollHeight)");
             delay(200);
         }
+    }
+
+    public static void printCurrentStackTrace() {
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        logger.info("Stack trace for thread [" + Thread.currentThread().getName() + "]:");
+        for (StackTraceElement element : stackTrace) {
+            logger.info(element.getClassName() + "." + element.getMethodName()
+                    + "(" + element.getFileName() + ":" + element.getLineNumber() + ")");
+        }
+    }
+    public static void closeWebDriver(WebDriver webDriver) {
+        if (webDriver != null) {
+            logger.info("Closing web driver.");
+        } else {
+            logger.info("Web driver already closed.");
+        }
+        printCurrentStackTrace();
+        Util.closeWebDriver(webDriver);
     }
 }

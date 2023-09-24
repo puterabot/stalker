@@ -15,6 +15,9 @@ import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 
 // Logging
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 
@@ -44,6 +47,8 @@ public class MeBotSeleniumApp {
     private static final int NUMBER_OF_LIST_THREADS = 1; // 32;
     private static final int NUMBER_OF_SEARCH_THREADS = 1; // 48;
     private static final int NUMBER_OF_PROFILE_THREADS = 1; // 24;
+
+    public static final List<WebDriver> currentDrivers = new ArrayList<>();
 
     private static void processNotDownloadedProfiles(Configuration c) throws InterruptedException {
         MongoConnection mongoConnection = Util.connectWithMongoDatabase();
@@ -112,8 +117,6 @@ public class MeBotSeleniumApp {
      * Situation after:
      * - New posts are added to post collection, with p (processed) flag undefined, for further
      *   information to be download later.
-     * @param c
-     * @throws InterruptedException
      */
     private static void processPostListings(Configuration c) throws InterruptedException {
         List<Thread> threads;// 1. List profiles
@@ -206,10 +209,31 @@ public class MeBotSeleniumApp {
 
         // 8. Close
         System.out.println("Program ended, timestamp: " + new Date());
-
     }
+
+    public static void panicCheck(WebDriver webDriver) {
+        WebElement iconCheck = webDriver.findElement(By.id("logo"));
+        if (iconCheck == null) {
+            logger.error("PANIC!: RESTART SESSION - CHECK COUNTER BOT MEASURES HAS NOT BEEN TRIGGERED!");
+            Util.closeWebDriver(webDriver);
+            MeBotSeleniumApp.cleanUp();
+            Util.exitProgram("Panic test failed.");
+        }
+    }
+
+    public static void cleanUp() {
+        for (WebDriver d : currentDrivers) {
+            Util.closeWebDriver(d);
+        }
+    }
+
     public static void main(String[] args) {
         try {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("SIGNAL - SHUTDOWN HOOK CLOSING PROGRAM RESOURCES");
+                cleanUp();
+            }));
+
             mainSequence();
         } catch (Exception e) {
             logger.error(e);

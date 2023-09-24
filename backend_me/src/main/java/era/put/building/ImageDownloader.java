@@ -56,27 +56,26 @@ public class ImageDownloader {
 
         // Check folders
         File root = new File(ME_IMAGE_DOWNLOAD_PATH);
-        if (root == null || !root.isDirectory()) {
-            out.println("ERROR: Can not write to " + ME_IMAGE_DOWNLOAD_PATH);
-            System.exit(121);
+        if (!root.isDirectory()) {
+            Util.exitProgram("ERROR: Can not write to " + ME_IMAGE_DOWNLOAD_PATH);
         }
 
         // Do subfolder
-        File d = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
-        if (d != null && d.exists() && !d.isDirectory()) {
-            out.println("ERROR: Can not write to " + ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
-            System.exit(122);
+        File directory = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
+        if (directory.exists() && !directory.isDirectory()) {
+            Util.exitProgram("ERROR: Can not write to " + ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
         }
-        if (d == null || !d.exists()) {
-            d.mkdir();
-            d = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
-            if (d != null && !d.isDirectory()) {
-                out.println("ERROR: Can not verify write to " + ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
-                System.exit(123);
+        if (!directory.exists()) {
+            if (!directory.mkdir() ) {
+                Util.exitProgram("Can not create directory [" + directory.getAbsolutePath() + "]");
+            }
+            directory = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
+            if (!directory.isDirectory()) {
+                Util.exitProgram("ERROR: Can not verify write to " + ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
             }
         }
 
-        return d.getAbsolutePath() + "/" + _id + ".jpg";
+        return directory.getAbsolutePath() + "/" + _id + ".jpg";
     }
 
     public static boolean downloadImageIfNeeded(Document imageObject, MongoCollection<Document> image, PrintStream out) {
