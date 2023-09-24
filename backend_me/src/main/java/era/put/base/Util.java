@@ -287,5 +287,12 @@ public class Util {
             logger.info("Web driver already closed.");
         }
         printCurrentStackTrace();
+
+        logger.info("Killing chrome processes on the OS");
+        try {
+            Runtime.getRuntime().exec("pkill -9 chrome");
+        } catch (IOException e) {
+            logger.error(e);
+        }
     }
 }

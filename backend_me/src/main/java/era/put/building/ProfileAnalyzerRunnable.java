@@ -521,7 +521,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
             }
         } catch (Exception e) {
             out.println("Error writing info to database for " + d.getCurrentUrl());
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 
@@ -538,10 +538,11 @@ public class ProfileAnalyzerRunnable implements Runnable {
 
     public void
     processPendingProfiles(Configuration c) {
+        WebDriver webDriver = null;
         try {
             logger.info("Starting processPendingProfiles.");
             Util.delay(4000);
-            WebDriver webDriver = Util.initWebDriver(c);
+            webDriver = Util.initWebDriver(c);
             if (webDriver == null) {
                 Util.exitProgram("Can not connect to web browser.");
             }
@@ -575,6 +576,13 @@ public class ProfileAnalyzerRunnable implements Runnable {
             if (mongoConnection == null) {
                 out.println("ERROR: Can not create connection with MongoDB");
                 endThread(200);
+            }
+
+            if (webDriver != null) {
+                Util.closeWebDriver(webDriver);
+                Util.delay(10000);
+                logger.warn("There was an error on processing, restarting web driver");
+                logger.warn(e);
             }
             processPendingProfiles(c);
         }
