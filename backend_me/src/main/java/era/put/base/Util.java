@@ -93,7 +93,7 @@ public class Util {
             mongoConnection.post = database.getCollection("post");
             mongoConnection.image = database.getCollection("image");
         } catch (Exception e) {
-            System.out.println("ERROR connecting to mongo database");
+            logger.error("ERROR connecting to mongo database");
             return null;
         }
         return mongoConnection;

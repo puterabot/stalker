@@ -8,6 +8,8 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.MongoCursorNotFoundException;
 import com.mongodb.MongoTimeoutException;
 import com.mongodb.client.MongoCollection;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 
@@ -17,6 +19,7 @@ import era.put.base.Util;
 import static com.mongodb.client.model.Filters.exists;
 
 public class RepeatedImageDetector {
+    private static final Logger logger = LogManager.getLogger(RepeatedImageDetector.class);
     public static int maxGroupSize = 0;
 
     private static void markAsReferenceAndRemoveFile(Document c, Document parent, MongoCollection<Document> image) {
@@ -29,7 +32,7 @@ public class RepeatedImageDetector {
         File fd = new File(filenameToRemove);
         if (fd.exists()) {
             if (!fd.delete()) {
-                System.err.println("Can not delete " + fd.getAbsolutePath());
+                logger.error("Can not delete " + fd.getAbsolutePath());
             }
         }
     }
