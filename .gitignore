@@ -41,3 +41,6 @@
 
 # Protect sensitive information
 **/application.properties
+
+# Unix temporary files
+**/nohup.out

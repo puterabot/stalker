@@ -17,7 +17,7 @@ public class Fixes {
 
     public static void deleteDanglingImages(MongoCollection<Document> image) throws Exception {
         Document query = new Document("x", new Document().append("$ne", true));
-        System.out.println("= DELETING DANGLING FILES =");
+        logger.info("= DELETING DANGLING FILES =");
         int count = 0;
         int pending = 0;
         for (Document d: image.find(query)) {
@@ -31,11 +31,11 @@ public class Fixes {
                     if (fd.delete()) {
                         count++;
                     } else {
-                        System.err.println("Cannot delete " + filename);
+                        logger.error("Cannot delete " + filename);
                     }
                 }
             } else {
-                Util.exitProgram("DIFFERENT: " + d.get("x").getClass().getName());
+                Util.exitProgram("UNSUPPORTED IMAGE x FIELD OF CLASS: " + d.get("x").getClass().getName());
             }
         }
         logger.info("= DELETED " + count + " DANGLING FILES, " + pending + " PENDING TO DOWNLOAD =");
@@ -44,7 +44,7 @@ public class Fixes {
     public static void downloadMissingImages(MongoCollection<Document> image) throws Exception {
         logger.info("= DOWNLOADING IMAGES =");
         int count = 0;
-        for (Document d: image.find(exists("x", false))) {
+        for (Document d: image.find(exists("d", false))) {
             if (ImageDownloader.downloadImageIfNeeded(d, image, System.out)) {
                 count++;
             }

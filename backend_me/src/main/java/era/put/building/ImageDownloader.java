@@ -91,10 +91,10 @@ public class ImageDownloader {
         }
 
         boolean status = downloadImageFromNet(imageFile, url, out);
-        Document o = new Document().append("_id", imageObject.get("_id"));
+        Document filter = new Document().append("_id", imageObject.get("_id"));
         Document newDocument = new Document().append("d", status);
         Document query = new Document().append("$set", newDocument);
-        image.updateOne(o, query);
+        image.updateOne(filter, query);
         return true;
     }
 }

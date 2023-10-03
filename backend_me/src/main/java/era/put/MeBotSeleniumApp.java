@@ -175,42 +175,6 @@ public class MeBotSeleniumApp {
         Fixes.fixRelationships(mongoConnection);
     }
 
-    private static void mainSequence() throws Exception {
-        // 0. Global init
-        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
-        root.setLevel(Level.OFF);
-
-        System.out.println("Application started, timestamp: " + new Date());
-        Configuration c = new ConfigurationColombia();
-
-        // 1. Download new post urls from list pages and store them by id on post database collection
-        //processPostListings(c);
-
-        // 2. Download known profiles in depth
-        //processProfileInDepthSearch(c);
-
-        // 3. Download new profiles detail
-        processNotDownloadedProfiles(c);
-
-        // 4. Analise images on disk
-        //processImages(c);
-
-        // 5. Execute fixes
-        //fixDatabaseCollections();
-
-        // 6. Print some dataset trivia
-        //ImageInfo.reportProfilesWithCommonImages();
-
-        // 7. Build extended information
-        //ImageInterleaver.createP0References(System.out);
-        //PostInterleaver.linkPostsToProfiles(System.out);
-        //ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
-        //System.out.println("Interleaving timestamp: " + new Date());
-
-        // 8. Close
-        System.out.println("Program ended, timestamp: " + new Date());
-    }
-
     public static void panicCheck(WebDriver webDriver) {
         WebElement iconCheck = webDriver.findElement(By.id("logo"));
         if (iconCheck == null) {
@@ -225,6 +189,41 @@ public class MeBotSeleniumApp {
         for (WebDriver d : currentDrivers) {
             Util.closeWebDriver(d);
         }
+    }
+
+    private static void mainSequence() throws Exception {
+        // 0. Global init
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
+        root.setLevel(Level.OFF);
+
+        System.out.println("Application started, timestamp: " + new Date());
+        Configuration c = new ConfigurationColombia();
+
+        // 1. Download new post urls from list pages and store them by id on post database collection
+        //processPostListings(c);
+
+        // 2. Download known profiles in depth
+        processProfileInDepthSearch(c);
+
+        // 3. Download new profiles detail
+        processNotDownloadedProfiles(c);
+
+        // 4. Analise images on disk
+        processImages(c);
+
+        // 5. Execute fixes
+        fixDatabaseCollections();
+
+        // 6. Print some dataset trivia
+        ImageInfo.reportProfilesWithCommonImages();
+
+        // 7. Build extended information
+        ImageInterleaver.createP0References(System.out);
+        PostInterleaver.linkPostsToProfiles(System.out);
+        ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
+
+        // 8. Close
+        System.out.println("Program ended, timestamp: " + new Date());
     }
 
     public static void main(String[] args) {

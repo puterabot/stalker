@@ -124,3 +124,47 @@ Example of profiles with a lot of posts:
 Profile that have changed number (old posts published with a number still available, but now linked to another number):
 
     5ee94e6d286cae0736e6b7e3 - 5ec80586f7aa7031162cc7d4
+
+# Pending data quality checks
+
+## Profiles without posts
+
+There are 428 profiles, some with images, that has no post references. How is this possible?
+Recommended filter: detect them, delete the associated images and remove profile and profileInfo from database.
+
+
+```
+db.profileInfo.find({numPosts: 0}, {_id: false, postIdArray: false, postUrlArray: false, imageIdArray: false, locationArray: false})
+```
+
+## Mismatch between stored images on folder and images on database
+
+
+The number on this two queries are a little different:
+
+```
+db.image.find({x: true}).count()
+```
+
+```
+find . -name "*.jpg" | wc -l
+```
+
+Perhaps the clean up process for repeated images have failed to remove some files.
+
+Recommended filter:
+- verify each existing image on file has a corresponding entry on database with x: true
+- verify each x: true database entry has an existing physical image on folder
+- remove all files on folder with a corresponding x: {ObjectId} reference (previous failed delete)
+- report any file on folder without corresponding database entry
+
+## Detect profiles with invalid phone numbers
+
+This should give 0
+
+### Remove black areas around images
+
+- Findimagedupes is having issues on correctly identifying matches when black borders surrounds real
+  image data
+- It is important to detect, modify those images to remove the borders and resave shasum
+  data on database for both the parent image and all of its siblings

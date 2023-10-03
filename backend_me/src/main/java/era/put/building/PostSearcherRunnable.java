@@ -1,9 +1,12 @@
 package era.put.building;
 
+import era.put.MeBotSeleniumApp;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
@@ -15,6 +18,7 @@ import era.put.base.MongoConnection;
 import era.put.base.Util;
 
 public class PostSearcherRunnable implements Runnable {
+    private static final Logger logger = LogManager.getLogger(PostSearcherRunnable.class);
     private ConcurrentLinkedQueue<PostSearchElement> searchUrls;
     private int id;
     private Configuration c;
@@ -43,12 +47,12 @@ public class PostSearcherRunnable implements Runnable {
         MongoConnection mongoConnection,
         String url,
         PrintStream out) {
-
         out.println("  - Importing " + url);
-        String cat = url.replace(c.getRootSiteUrl(), "");
-        int index = cat.indexOf("/");
+
+        String service = url.replace(c.getRootSiteUrl(), "");
+        int index = service.indexOf("/");
         if (index >= 0) {
-            cat = cat.substring(0, index - 1);
+            service = service.substring(0, index - 1);
         }
 
         // Load all available results
@@ -69,13 +73,17 @@ public class PostSearcherRunnable implements Runnable {
         } while (clicked);
 
         // Download results to database
-        PostAnalyzer.traversePostsListInCurrentPage(driver, mongoConnection.post, cat, "search", 0, out);
+        PostAnalyzer.traversePostsListInCurrentPage(driver, mongoConnection.post, service, "search", 0, out);
     }
 
     @Override
     public void run() {
         try {
             WebDriver driver = Util.initWebDriver(c);
+            if (driver == null) {
+                Util.exitProgram("Could not open web driver on deep search");
+                return;
+            }
             JavascriptExecutor js = (JavascriptExecutor) driver;
             Util.login(driver, c);
 
@@ -91,10 +99,10 @@ public class PostSearcherRunnable implements Runnable {
                 boolean listFound = false;
                 for (String url: searchElement.getUrls()) {
                     driver.get(url);
-
-                    Util.delay(500);
+                    Util.delay(400);
                     WebElement error = getError(driver);
                     if (error != null) {
+                        out.println("  - Skipping " + url);
                         continue;
                     }
 

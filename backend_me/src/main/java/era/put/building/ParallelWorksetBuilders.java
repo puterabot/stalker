@@ -46,7 +46,6 @@ public class ParallelWorksetBuilders {
         MongoConnection mongoConnection,
         Configuration c) {
         ConcurrentLinkedQueue<PostSearchElement> searchUrls = new ConcurrentLinkedQueue<>();
-        List<PostSearchElement> linearOrderUrls = new LinkedList<>();
 
         ArrayList<Document> conditionsArray = new ArrayList<>();
         conditionsArray.add(new Document("s", new BasicDBObject("$exists", false)));
@@ -54,16 +53,16 @@ public class ParallelWorksetBuilders {
         Document filter = new Document("$and", conditionsArray);
         for (Document u: mongoConnection.profile.find(filter)) {
             String phone = u.getString("p");
-            if (phone != null && !phone.isEmpty() && phone.length() >= 7) {
+            if (phone != null && phone.length() >= 7) {
                 List<String> urls = new ArrayList<String>();
                 for (String service : c.getServices()) {
                     urls.add(c.getRootSiteUrl() + service + "/buscar-" + phone);
                 }
                 PostSearchElement e = PostSearchElement.builder()
-                        .urls(urls)
-                        .profileId(u.getObjectId("_id"))
-                        .build();
-                linearOrderUrls.add(e);
+                    .urls(urls)
+                    .profileId(u.getObjectId("_id"))
+                    .build();
+                searchUrls.add(e);
             }
         }
 

@@ -39,7 +39,7 @@ public class PostAnalyzer {
                 continue;
             }
 
-            // Identify location from page
+            // Identify location from post
             String location = null;
             WebElement place = e.findElement(By.cssSelector("small.display-block"));
             if (place != null && place.getText() != null && !place.getText().isEmpty()) {
