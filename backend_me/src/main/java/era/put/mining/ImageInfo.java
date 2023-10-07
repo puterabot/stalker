@@ -3,6 +3,7 @@ package era.put.mining;
 import com.mongodb.BasicDBObject;
 import com.mongodb.client.MongoCollection;
 import era.put.base.MongoConnection;
+import era.put.base.MongoUtil;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.Util;
@@ -27,11 +28,11 @@ public class ImageInfo {
         MongoCollection<Document> image,
         MongoCollection<Document> profile,
         Document pivot) {
-        ImageFileAttributes attrPivot = Util.getImageAttributes(pivot);
+        ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(pivot);
         if (attrPivot == null) {
             return;
         }
-        ObjectId parentPivot = Util.getImageParentProfileId(pivot);
+        ObjectId parentPivot = MongoUtil.getImageParentProfileId(pivot);
         if (parentPivot == null) {
             return;
         }
@@ -42,8 +43,8 @@ public class ImageInfo {
         Document filter = new Document().append("a.shasum", attrPivot.getShasum()).append("x", true);
         for (Document i: image.find(filter).sort(new BasicDBObject("md", 1))) {
             // 1. Extract pair [pivot, i]
-            ImageFileAttributes attrI = Util.getImageAttributes(i);
-            ObjectId parentI = Util.getImageParentProfileId(i);
+            ImageFileAttributes attrI = MongoUtil.getImageAttributes(i);
+            ObjectId parentI = MongoUtil.getImageParentProfileId(i);
             String filenameI = ImageDownloader.imageFilename(i, System.out);
 
             // 2. Compare by attributes
@@ -60,7 +61,7 @@ public class ImageInfo {
             try {
                 // If i has an parent, it is part of the group (previously cleaned)
                 if (i.get("x") == null
-                        && !Util.fileDiff(filenamePivot, filenameI)) {
+                        && Util.filesAreDifferent(filenamePivot, filenameI)) {
                     continue;
                 }
             } catch (Exception e) {
@@ -85,7 +86,7 @@ public class ImageInfo {
             if (i == 0) {
                 System.out.println("Group of " + d.get("url") + ":");
             }
-            Document p = Util.getImageParentProfile(d, profile);
+            Document p = MongoUtil.getImageParentProfile(d, profile);
             System.out.println("  - " + p.get("p"));
         }
     }
@@ -97,7 +98,7 @@ public class ImageInfo {
      */
     public static void
     reportProfilesWithCommonImages() {
-        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
         if (mongoConnection == null) {
             return;
         }

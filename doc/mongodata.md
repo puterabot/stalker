@@ -4,40 +4,39 @@
 This system connects to a mongodb database called `mileroticos` and uses the following collections:
 
 **post**:
-  - **url**: post source
-  - **i**: integer id
-  - **t**: time of first list download / first published date (is updated)
-  - **md**: measured date from profile
+  - **_id**: Mongo object id
   - **c**: country two-letter code
-  - **s**: service search when first download
-  - **r**: region search when first download
+  - **d**: description text (can be non-existent)
+  - **i**: integer id
+  - **l**: location label (can be non-existent)
+  - **md**: measured date from profile (can be non-existent)
   - **p**: already processed flag:
      . non-existent: pending to process
      . true: imported ok, profile and image information expected
      . false: imported with error, no profile found or profile skipped due to not having images
-  - **d**: description text (can be non-existent)
+  - **r**: region search when first download
+  - **s**: service search when first download
+  - **t**: time of first list download / first published date (is updated)
   - **u**: identified user profile
      . non-existent: to process
      . ObjectId: id for a profile
      . false: not found, unlinked
-  - **l**: location label
-  - **w**: whatsapp promise flag
-  - **v**: verification, second pass
-     . non-existent: second pass still not performed
-     . false: not available at second pass date
-     . true: revisited (used to define group when linked number is changed)
+  - **url**: post source
+  - **w**: whatsapp promise flag (can be non-existent)
 
 **profile**
+  - **_id**: Mongo object id
   - **p**: phone
-  - **t**: time of last update
   - **s**: deep Search performed
     . Non-existent: search not tried, to do
     . false: search tried and failed with error
     . true: search performed and possible additional posts added
-  - **a**: alarmed
+  - **t**: time of last update
+
+  - **a**: alarmed (object, still not used!)
     . Non-existent or false: not notified yet
-    . True: already sent to alarm system
-  - **f**: manual flags (object)
+    . True: already sent to alarm system (reported as new profile)
+  - **f**: manual flags (object, still not used!)
     . reviewed
     . genderMale
     . genderFemale
@@ -129,7 +128,7 @@ Profile that have changed number (old posts published with a number still availa
 
 ## Profiles without posts
 
-There are 428 profiles, some with images, that has no post references. How is this possible?
+There are 396 profiles, some with images, that has no post references. How is this possible?
 Recommended filter: detect them, delete the associated images and remove profile and profileInfo from database.
 
 
@@ -168,3 +167,16 @@ This should give 0
   image data
 - It is important to detect, modify those images to remove the borders and resave shasum
   data on database for both the parent image and all of its siblings
+
+## Useful queries
+
+### To list attributes on a collection
+
+var distinctAttributes = new Set();
+db.post.find().forEach(function(document) {
+    for (var key in document) {
+        distinctAttributes.add(key);
+    }
+});
+var sortedAttributes = Array.from(distinctAttributes).sort();
+printjson(sortedAttributes);

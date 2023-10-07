@@ -106,6 +106,7 @@ mongo.user=theUser
 mongo.password=thePwd
 mongo.database=theDb
 me.image.download.path=/some/folder/where/to/download/images
+chromium.config.path=/some/folder/usually/user/.config/chromium
 ```
 
 Project can be imported on a IDE development tool as such Intellij or executed from the command line using gradle:

@@ -1,5 +1,6 @@
 package era.put.building;
 
+import era.put.base.MongoUtil;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,11 +39,11 @@ public class RepeatedImageDetector {
     }
 
     private static void processGroupCandidatesForImage(MongoCollection<Document> image, Document pivot) {
-        ImageFileAttributes attrPivot = Util.getImageAttributes(pivot);
+        ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(pivot);
         if (attrPivot == null) {
             return;
         }
-        ObjectId parentPivot = Util.getImageParentProfileId(pivot);
+        ObjectId parentPivot = MongoUtil.getImageParentProfileId(pivot);
         if (parentPivot == null) {
             return;
         }
@@ -51,11 +52,17 @@ public class RepeatedImageDetector {
         // Build candidate set
         List<Document> candidateSet = new ArrayList<>();
         Document filter = new Document().append("a.shasum", attrPivot.getShasum());
-        for (Document i: image.find(filter).sort(new BasicDBObject("md", 1))) {
-            // 1. Extract pair [pivot, i]
-            ImageFileAttributes attrI = Util.getImageAttributes(i);
-            ObjectId parentI = Util.getImageParentProfileId(i);
-            String filenameI = ImageDownloader.imageFilename(i, System.out);
+        for (Document currentDocument: image.find(filter).sort(new BasicDBObject("md", 1))) {
+            // 1. Extract pair [pivot, currentDocument]
+            ImageFileAttributes attrI = MongoUtil.getImageAttributes(currentDocument);
+            if (attrI == null) {
+                continue;
+            }
+            ObjectId parentI = MongoUtil.getImageParentProfileId(currentDocument);
+            if (parentI == null) {
+                continue;
+            }
+            String filenameI = ImageDownloader.imageFilename(currentDocument, System.out);
 
             // 2. Compare by attributes
             if (attrPivot.compareTo(attrI) != 0) {
@@ -69,9 +76,9 @@ public class RepeatedImageDetector {
 
             // 4. Compare files
             try {
-                // If i has an parent, it is part of the group (previously cleaned)
-                if (i.get("x") == null
-                    && !Util.fileDiff(filenamePivot, filenameI)) {
+                // If currentDocument has parent, it is part of the group (previously cleaned)
+                if (currentDocument.get("x") == null
+                    && Util.filesAreDifferent(filenamePivot, filenameI)) {
                     continue;
                 }
             } catch (Exception e) {
@@ -79,7 +86,7 @@ public class RepeatedImageDetector {
             }
 
             // 5. Add to candidate set
-            candidateSet.add(i);
+            candidateSet.add(currentDocument);
         }
 
         // Merge groups and trim repeated images, keep older one
@@ -103,9 +110,9 @@ public class RepeatedImageDetector {
             if (j == 0) {
                 parent = c;
                 Document newDocument = new Document().append("x", true);
-                Document pfilter = new Document().append("_id", parent.get("_id"));
+                Document parentFilter = new Document().append("_id", parent.get("_id"));
                 Document query = new Document().append("$set", newDocument);
-                image.updateOne(pfilter, query);
+                image.updateOne(parentFilter, query);
             } else {
                 try {
                     markAsReferenceAndRemoveFile(c, parent, image);
@@ -125,7 +132,7 @@ public class RepeatedImageDetector {
             }
             System.out.println("= DETECTING REPEATED IMAGES PROCESS COMPLETE =========================================");
         } catch (MongoCursorNotFoundException | MongoTimeoutException e) {
-            MongoConnection c = Util.connectWithMongoDatabase();
+            MongoConnection c = MongoUtil.connectWithMongoDatabase();
             if (c != null && c.image != null) {
                 groupImages(c.image);
             }

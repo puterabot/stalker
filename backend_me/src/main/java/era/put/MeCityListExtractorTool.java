@@ -3,6 +3,7 @@ package era.put;
 import ch.qos.logback.classic.Level;
 import era.put.base.Configuration;
 import era.put.base.ConfigurationColombia;
+import era.put.base.SeleniumUtil;
 import era.put.base.Util;
 import java.util.HashMap;
 import java.util.List;
@@ -10,13 +11,9 @@ import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openqa.selenium.By;
-import org.openqa.selenium.Keys;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.devtools.DevTools;
-import org.openqa.selenium.interactions.Actions;
-import org.openqa.selenium.remote.Response;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -56,7 +53,7 @@ public class MeCityListExtractorTool {
             return;
         }
         citySelectionDropdownButton.click();
-        Util.delay(500);
+        SeleniumUtil.delay(500);
         WebElement ulCitiesList = driver.findElement(By.id("select2-prompt_city-results"));
         if (citySelectionDropdownButton == null) {
             logger.error("Can not get cities list for region " + regionName);
@@ -73,7 +70,7 @@ public class MeCityListExtractorTool {
 
     private static void mainFlow() {
         Configuration c = new ConfigurationColombia();
-        WebDriver webDriver = Util.initWebDriver(c);
+        WebDriver webDriver = SeleniumUtil.initWebDriver(c);
 
         if (!(webDriver instanceof ChromeDriver)) {
             logger.error("DevTools only available on Chrome/Chromium");
@@ -83,14 +80,14 @@ public class MeCityListExtractorTool {
             Util.exitProgram("Can not create connection with browser");
         }
 
-        Util.login(webDriver, c);
+        SeleniumUtil.login(webDriver, c);
 
         WebElement dropDownRegionsMenuButton = webDriver.findElement(By.className("select2-selection--single"));
         if (dropDownRegionsMenuButton == null) {
             Util.exitProgram("Can not import regions from UI, no dropdown button.");
         }
         dropDownRegionsMenuButton.click();
-        Util.delay(2000);
+        SeleniumUtil.delay(2000);
         WebElement ulRegionsList = webDriver.findElement(By.id("select2-prompt_state-results"));
         if (ulRegionsList == null) {
             Util.exitProgram("Can not import regions from UI, no regions list.");
@@ -103,16 +100,16 @@ public class MeCityListExtractorTool {
             WebElement li = liRegions.get(i);
             String regionName = normalize(li.getText());
             li.click();
-            Util.delay(500);
+            SeleniumUtil.delay(500);
             traverseCitiesList(webDriver, regionName);
             dropDownRegionsMenuButton.click();
             System.out.println("        \"" + regionName + "\",");
-            Util.delay(500);
+            SeleniumUtil.delay(500);
             liRegions = ulRegionsList.findElements(By.tagName("li"));
-            Util.delay(500);
+            SeleniumUtil.delay(500);
         }
         System.out.println("================================================================");
-        Util.closeWebDriver(webDriver);
+        SeleniumUtil.closeWebDriver(webDriver);
     }
 
     public static void main(String args[]) {

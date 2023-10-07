@@ -2,7 +2,7 @@ package era.put.interleaving;
 
 import com.mongodb.MongoCursorNotFoundException;
 import com.mongodb.MongoTimeoutException;
-import era.put.base.Util;
+import era.put.base.MongoUtil;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.MongoConnection;
@@ -39,7 +39,7 @@ public class ImageInterleaver {
 
     public static void createP0References(PrintStream out) {
         try {
-            MongoConnection c = Util.connectWithMongoDatabase();
+            MongoConnection c = MongoUtil.connectWithMongoDatabase();
             if (c == null) {
                 return;
             }

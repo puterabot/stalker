@@ -1,9 +1,10 @@
 package era.put.building;
 
+import era.put.base.MongoUtil;
+import era.put.base.SeleniumUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.openqa.selenium.WebDriver;
-import era.put.MeBotSeleniumApp;
 import era.put.base.Configuration;
 import era.put.base.MongoConnection;
 import era.put.base.Util;
@@ -34,15 +35,15 @@ public class PostAnalyzerRunnable implements Runnable {
     @Override
     public void run() {
         try {
-            WebDriver webDriver = Util.initWebDriver(c);
+            WebDriver webDriver = SeleniumUtil.initWebDriver(c);
 
             if (webDriver == null) {
                 Util.exitProgram("Can not create connection with browser.");
             }
 
-            Util.login(webDriver, c);
+            SeleniumUtil.login(webDriver, c);
 
-            MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+            MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
             if (mongoConnection == null) {
                 return;
             }
@@ -54,7 +55,7 @@ public class PostAnalyzerRunnable implements Runnable {
                 out.println("= SERVICE: " + e.service + ", REGION: " + e.region + " =====");
                 String url = "https://co.mileroticos.com/" + e.service + "/" + e.region;
                 webDriver.get(url);
-                Util.ramdomDelay(3000, 6000);
+                SeleniumUtil.randomDelay(3000, 6000);
                 int i = 1;
                 while (PostAnalyzer.traverseListInCurrentPageAndGoNext(webDriver, mongoConnection.post, e.service, e.region, i, out)) {
                     i++;

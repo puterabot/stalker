@@ -3,10 +3,10 @@ package era.put.interleaving;
 import com.mongodb.BasicDBObject;
 import com.mongodb.MongoCursorNotFoundException;
 import com.mongodb.MongoTimeoutException;
+import era.put.base.MongoUtil;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.MongoConnection;
-import era.put.base.Util;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -15,7 +15,7 @@ import java.util.Date;
 public class ProfileInfoInterleaver {
     public static void createExtendedProfileInfo(PrintStream out) {
         try {
-            MongoConnection c = Util.connectWithMongoDatabase();
+            MongoConnection c = MongoUtil.connectWithMongoDatabase();
             if (c == null) {
                 return;
             }
@@ -40,7 +40,7 @@ public class ProfileInfoInterleaver {
                 String lastLocation = null;
                 String lastService = null;
                 for(Document p: c.post.find(filter).sort(new BasicDBObject("md", 1).append("t", 1))) {
-                    lastPostDate = Util.getDateFromMdOrT(p);
+                    lastPostDate = MongoUtil.getDateFromMdOrT(p);
                     if (firstPostDate == null) {
                         firstPostDate = lastPostDate;
                     }

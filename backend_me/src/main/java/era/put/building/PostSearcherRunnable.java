@@ -1,6 +1,7 @@
 package era.put.building;
 
-import era.put.MeBotSeleniumApp;
+import era.put.base.MongoUtil;
+import era.put.base.SeleniumUtil;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -58,13 +59,13 @@ public class PostSearcherRunnable implements Runnable {
         // Load all available results
         boolean clicked = false;
         do {
-            Util.delay(400);
+            SeleniumUtil.delay(400);
             js.executeScript("window.scrollTo(0, document.body.scrollHeight)");
             try {
                 WebElement button = driver.findElement(By.cssSelector(".listing-load-more"));
                 if (button != null) {
                     button.click();
-                    Util.delay(400);
+                    SeleniumUtil.delay(400);
                     clicked = true;
                 }
             } catch (Exception e) {
@@ -79,15 +80,15 @@ public class PostSearcherRunnable implements Runnable {
     @Override
     public void run() {
         try {
-            WebDriver driver = Util.initWebDriver(c);
+            WebDriver driver = SeleniumUtil.initWebDriver(c);
             if (driver == null) {
                 Util.exitProgram("Could not open web driver on deep search");
                 return;
             }
             JavascriptExecutor js = (JavascriptExecutor) driver;
-            Util.login(driver, c);
+            SeleniumUtil.login(driver, c);
 
-            MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+            MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
             if (mongoConnection == null) {
                 return;
             }
@@ -99,7 +100,7 @@ public class PostSearcherRunnable implements Runnable {
                 boolean listFound = false;
                 for (String url: searchElement.getUrls()) {
                     driver.get(url);
-                    Util.delay(400);
+                    SeleniumUtil.delay(400);
                     WebElement error = getError(driver);
                     if (error != null) {
                         out.println("  - Skipping " + url);

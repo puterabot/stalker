@@ -1,6 +1,8 @@
 package era.put;
 
 // Java
+import era.put.base.MongoUtil;
+import era.put.base.SeleniumUtil;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Date;
@@ -51,7 +53,7 @@ public class MeBotSeleniumApp {
     public static final List<WebDriver> currentDrivers = new ArrayList<>();
 
     private static void processNotDownloadedProfiles(Configuration c) throws InterruptedException {
-        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
         if (mongoConnection == null) {
             return;
         }
@@ -85,7 +87,7 @@ public class MeBotSeleniumApp {
      */
     private static void processProfileInDepthSearch(Configuration c)
             throws InterruptedException {
-        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
         if (mongoConnection == null) {
             return;
         }
@@ -141,7 +143,7 @@ public class MeBotSeleniumApp {
     }
 
     private static void processImages(Configuration c) throws Exception {
-        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
         if (mongoConnection == null) {
             return;
         }
@@ -166,7 +168,7 @@ public class MeBotSeleniumApp {
     }
 
     private static void fixDatabaseCollections() throws Exception {
-        MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
         if (mongoConnection == null) {
             return;
         }
@@ -179,7 +181,7 @@ public class MeBotSeleniumApp {
         WebElement iconCheck = webDriver.findElement(By.id("logo"));
         if (iconCheck == null) {
             logger.error("PANIC!: RESTART SESSION - CHECK COUNTER BOT MEASURES HAS NOT BEEN TRIGGERED!");
-            Util.closeWebDriver(webDriver);
+            SeleniumUtil.closeWebDriver(webDriver);
             MeBotSeleniumApp.cleanUp();
             Util.exitProgram("Panic test failed.");
         }
@@ -187,7 +189,7 @@ public class MeBotSeleniumApp {
 
     public static void cleanUp() {
         for (WebDriver d : currentDrivers) {
-            Util.closeWebDriver(d);
+            SeleniumUtil.closeWebDriver(d);
         }
     }
 
@@ -200,7 +202,7 @@ public class MeBotSeleniumApp {
         Configuration c = new ConfigurationColombia();
 
         // 1. Download new post urls from list pages and store them by id on post database collection
-        //processPostListings(c);
+        processPostListings(c);
 
         // 2. Download known profiles in depth
         processProfileInDepthSearch(c);

@@ -5,6 +5,8 @@ import com.mongodb.client.MongoCursor;
 import era.put.MeBotSeleniumApp;
 import era.put.base.Configuration;
 import era.put.base.MongoConnection;
+import era.put.base.MongoUtil;
+import era.put.base.SeleniumUtil;
 import era.put.base.Util;
 import java.io.File;
 import java.io.PrintStream;
@@ -191,7 +193,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
 
     private Set<String>
     extractImages(WebDriver d) {
-        Util.scrollDownPage(d);
+        SeleniumUtil.scrollDownPage(d);
         int sc = screenshootCounter % 100;
         String msg = String.format("/tmp/screenshot%03d.jpg", sc);
         //Util.fullPageScreenShot(d, msg);
@@ -356,7 +358,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
             Document p,
             MongoConnection mongoConnection,
             Configuration c) {
-        Util.closeDialogs(d);
+        SeleniumUtil.closeDialogs(d);
         // Extract post date
         Date date = extractDate(d, c);
         if (date == null) {
@@ -541,15 +543,15 @@ public class ProfileAnalyzerRunnable implements Runnable {
         WebDriver webDriver = null;
         try {
             logger.info("Starting processPendingProfiles.");
-            Util.delay(4000);
-            webDriver = Util.initWebDriver(c);
+            SeleniumUtil.delay(4000);
+            webDriver = SeleniumUtil.initWebDriver(c);
             if (webDriver == null) {
                 Util.exitProgram("Can not connect to web browser.");
             }
-            Util.login(webDriver, c);
+            SeleniumUtil.login(webDriver, c);
             out = createPrintStream();
 
-            MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+            MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
             if (mongoConnection == null) {
                 return;
             }
@@ -570,17 +572,17 @@ public class ProfileAnalyzerRunnable implements Runnable {
                     processProfilePage(webDriver, p, mongoConnection, c);
                 }
             }
-            Util.closeWebDriver(webDriver);
+            SeleniumUtil.closeWebDriver(webDriver);
         } catch (Exception e) {
-            MongoConnection mongoConnection = Util.connectWithMongoDatabase();
+            MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
             if (mongoConnection == null) {
                 out.println("ERROR: Can not create connection with MongoDB");
                 endThread(200);
             }
 
             if (webDriver != null) {
-                Util.closeWebDriver(webDriver);
-                Util.delay(10000);
+                SeleniumUtil.closeWebDriver(webDriver);
+                SeleniumUtil.delay(10000);
                 logger.warn("There was an error on processing, restarting web driver");
                 logger.warn(e);
             }

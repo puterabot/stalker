@@ -2,10 +2,10 @@ package era.put.interleaving;
 
 import com.mongodb.MongoCursorNotFoundException;
 import com.mongodb.MongoTimeoutException;
+import era.put.base.MongoUtil;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.MongoConnection;
-import era.put.base.Util;
 
 import java.io.PrintStream;
 
@@ -14,7 +14,7 @@ import static com.mongodb.client.model.Filters.exists;
 public class PostInterleaver {
     public static void linkPostsToProfiles(PrintStream out) {
         try {
-            MongoConnection c = Util.connectWithMongoDatabase();
+            MongoConnection c = MongoUtil.connectWithMongoDatabase();
             if (c == null) {
                 return;
             }
@@ -26,7 +26,7 @@ public class PostInterleaver {
                 tick(out, count);
                 count++;
 
-                Document i = Util.getImageFromPostId(postId, c.image);
+                Document i = MongoUtil.getImageFromPostId(postId, c.image);
                 if (i == null) {
                     Document filter = new Document("_id", postId);
                     Document newDocument = new Document("u", false);

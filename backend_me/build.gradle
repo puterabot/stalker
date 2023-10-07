@@ -22,3 +22,18 @@ dependencies {
     implementation 'ru.yandex.qatools.ashot:ashot:1.5.4'
     implementation 'ch.qos.logback:logback-classic:1.4.11'
 }
+
+application {
+    ext {
+        selectedMainClassShort = project.hasProperty('app') ? "com.example.${project.property('app')}" : 'com.example.DefaultMainClass'
+    }
+    mainClassName = selectedMainClassShort
+}
+
+run {
+    jvmArgs(['-Xlint:deprecation'])
+    if (project.hasProperty('app')) {
+        selectedMainClassShort = "com.example.${project.property('app')}"
+        mainClassName = selectedMainClassShort
+    }
+}

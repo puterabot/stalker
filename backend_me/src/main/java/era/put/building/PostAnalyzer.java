@@ -1,6 +1,7 @@
 package era.put.building;
 
 // Java classes
+import era.put.base.SeleniumUtil;
 import java.io.PrintStream;
 import java.util.Date;
 import java.util.List;
@@ -113,14 +114,14 @@ public class PostAnalyzer {
         String region,
         int pageCount,
         PrintStream out) {
-        Util.delay(400);
-        Util.closeDialogs(d);
+        SeleniumUtil.delay(400);
+        SeleniumUtil.closeDialogs(d);
         //boolean allNewInPage =
         traversePostsListInCurrentPage(d, post, category, region, pageCount, out);
         try {
-            Util.scrollDownPage(d);
-            Util.closeDialogs(d);
-            Util.scrollDownPage(d);
+            SeleniumUtil.scrollDownPage(d);
+            SeleniumUtil.closeDialogs(d);
+            SeleniumUtil.scrollDownPage(d);
             WebElement n = d.findElement(By.cssSelector("li.next"));
             if (n != null) {
                 WebElement l = n.findElement(By.tagName("a"));
