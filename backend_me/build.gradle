@@ -6,8 +6,6 @@ plugins {
 
 group 'co.cubestudio'
 version '0.666'
-mainClassName 'era.put.MeBotSeleniumApp'
-//mainClassName 'era.put.MeCityListExtractorTool'
 
 repositories {
     mavenCentral()
@@ -23,17 +21,17 @@ dependencies {
     implementation 'ch.qos.logback:logback-classic:1.4.11'
 }
 
+ext {
+    selectedMainClassShort = project.hasProperty('app') ? "com.example.${project.property('app')}" : 'era.put.MeBotSeleniumApp'
+}
+
 application {
-    ext {
-        selectedMainClassShort = project.hasProperty('app') ? "com.example.${project.property('app')}" : 'com.example.DefaultMainClass'
-    }
     mainClassName = selectedMainClassShort
 }
 
 run {
-    jvmArgs(['-Xlint:deprecation'])
     if (project.hasProperty('app')) {
-        selectedMainClassShort = "com.example.${project.property('app')}"
+        selectedMainClassShort = "era.put.${project.property('app')}"
         mainClassName = selectedMainClassShort
     }
 }
