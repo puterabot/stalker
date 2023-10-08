@@ -1,9 +1,22 @@
 package era.put.mining;
 
 import com.mongodb.BasicDBObject;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Projections;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.Util;
@@ -14,82 +27,72 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ImageInfo {
-    private static int counter = 0;
-    /**
-     * Find the profile(s) with highest number of image groups.
-     */
-
-    /**
-     * Find the profile(s) with highest pixel count.
-     */
+    private static final Logger logger = LogManager.getLogger(ImageInfo.class);
+    private static final int NUMBER_OF_REPORTER_THREADS = 24;
 
     private static void
     reportProfilesWithCommonImagesForPivot(
         MongoCollection<Document> image,
         MongoCollection<Document> profile,
-        Document imagePivotObject) {
-        ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(imagePivotObject);
+        Document parentImageObject,
+        ConcurrentHashMap<String, Set<String>> groups,
+        AtomicInteger totalImagesProcessed,
+        AtomicInteger externalMatchCounter) {
+        int n = totalImagesProcessed.incrementAndGet();
+        if (n % 20000 == 0) {
+            logger.info("No repeated images ({})", n);
+        }
+
+        ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(parentImageObject);
         if (attrPivot == null) {
             return;
         }
-        ObjectId parentPivot = MongoUtil.getImageParentProfileId(imagePivotObject);
-        if (parentPivot == null) {
+        ObjectId profileIdPivot = MongoUtil.getImageParentProfileId(parentImageObject);
+        if (profileIdPivot == null) {
             return;
         }
-        String _id = ((ObjectId)imagePivotObject.get("_id")).toString();
-        String filenamePivot = ImageDownloader.imageFilename(_id, System.out);
+        String imageIdPivot = ((ObjectId)parentImageObject.get("_id")).toString();
 
         // Build candidate set
-        List<Document> candidateSet = new ArrayList<>();
-        Document filter = new Document().append("a.shasum", attrPivot.getShasum()).append("x", true);
-        for (Document i: image.find(filter).sort(new BasicDBObject("md", 1))) {
-            // 1. Extract pair [imagePivotObject, i]
-            ImageFileAttributes attrI = MongoUtil.getImageAttributes(i);
-            ObjectId parentI = MongoUtil.getImageParentProfileId(i);
-            String _idI = ((ObjectId) i.get("_id")).toString();
-            String filenameI = ImageDownloader.imageFilename(_idI, System.out);
+        Document filter = new Document()
+            .append("_id", new BasicDBObject("$ne", parentImageObject.get("_id")))
+            .append("a.shasum", attrPivot.getShasum())
+            .append("x", true);
+        FindIterable<Document> imageIterable = image.find(filter)
+            .projection(Projections.include("_id", "a", "u", "md"))
+            .sort(new BasicDBObject("md", 1));
 
-            // 2. Compare by attributes
+        for (Document i: imageIterable) {
+            // 1. Not comparing with itself
+            String imageIdI = ((ObjectId) i.get("_id")).toString();
+            if (imageIdPivot.equals(imageIdI)) {
+                continue;
+            }
+
+            // 2. Extract pair [imagePivotObject, i]
+            ImageFileAttributes attrI = MongoUtil.getImageAttributes(i);
+            ObjectId profileIdI = MongoUtil.getImageParentProfileId(i);
+            if (attrI == null || profileIdI == null) {
+                continue;
+            }
+
+            // 3. Compare by attributes
             if (attrPivot.compareTo(attrI) != 0) {
                 continue;
             }
 
-            // 3. Compare by parent profile
-            if (parentPivot.compareTo(parentI) != 0) {
-                continue;
-            }
-
-            // 4. Compare files
-            try {
-                // If i has an parent, it is part of the group (previously cleaned)
-                if (i.get("x") == null
-                        && Util.filesAreDifferent(filenamePivot, filenameI)) {
-                    continue;
+            // 4. Compare by parent profile
+            if (profileIdPivot.compareTo(profileIdI) != 0) {
+                externalMatchCounter.incrementAndGet();
+                Set<String> group = groups.get(imageIdPivot);
+                if (group == null) {
+                    group = new TreeSet<>();
+                    group.add(profileIdPivot.toString());
+                    groups.put(imageIdPivot, group);
+                    group = groups.get(imageIdPivot);
                 }
-            } catch (Exception e) {
-                continue;
+                group.add(profileIdI.toString());
             }
-
-            // 5. Add to candidate set
-            candidateSet.add(i);
-        }
-
-        // Report if repeated images
-        if (candidateSet.size() < 2) {
-            counter++;
-            if (counter % 10000 == 0) {
-                System.out.println("  - No repeated images (" + counter + ")");
-            }
-            return;
-        }
-
-        for (int i = 0; i < candidateSet.size(); i++) {
-            Document d = candidateSet.get(i);
-            if (i == 0) {
-                System.out.println("Group of " + d.get("url") + ":");
-            }
-            Document p = MongoUtil.getImageParentProfile(d, profile);
-            System.out.println("  - " + p.get("p"));
         }
     }
 
@@ -105,24 +108,60 @@ public class ImageInfo {
             return;
         }
 
-        System.out.println("= DETECTING REPEATED IMAGES ACROSS PROFILES ==========================================");
-        Document filter = new Document().append("x", true);
-        for (Document i: mongoConnection.image.find(filter).sort(new BasicDBObject("md", 1))) {
-            reportProfilesWithCommonImagesForPivot(mongoConnection.image, mongoConnection.profile, i);
+        logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES ==========================================");
+        Document filter = new Document("md", new BasicDBObject("$exists", true))
+                .append("x", true)
+                .append("a", new BasicDBObject("$exists", true))
+                .append("u", new BasicDBObject("$exists", true));
+        FindIterable<Document> parentImageIterable = mongoConnection.image.find(filter)
+            .projection(Projections.include("_id", "a", "u", "md"))
+            .sort(new BasicDBObject("md", 1));
+
+        ThreadFactory threadFactory = Util.buildThreadFactory("ParentImagesShaComparator[%03d]");
+        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_REPORTER_THREADS, threadFactory);
+        AtomicInteger totalImagesProcessed = new AtomicInteger(0);
+        AtomicInteger externalMatchCounter = new AtomicInteger(0);
+        ConcurrentHashMap<String, Set<String>> externalMatches; // imageId vs set of profileId :)
+        externalMatches = new ConcurrentHashMap<>();
+
+        parentImageIterable.forEach((Consumer<? super Document>) parentImageObject ->
+            executorService.submit(() ->
+                reportProfilesWithCommonImagesForPivot(
+                    mongoConnection.image, mongoConnection.profile, parentImageObject, externalMatches,
+                    totalImagesProcessed, externalMatchCounter)
+            )
+        );
+
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
+                logger.error("Parent image comparator threads taking so long!");
+            }
+        } catch (InterruptedException e) {
+            logger.error(e);
         }
-        System.out.println("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
+
+        reportGroups(externalMatches);
+
+        logger.info("Total parent images processed: {}", totalImagesProcessed.get());
+        logger.info("External matches skipped: {}", externalMatchCounter.get());
+        logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
     }
 
-    /**
+    private static void reportGroups(ConcurrentHashMap<String, Set<String>> externalMatches) {
+        logger.info("Detected groups: {}", externalMatches.size());
+    }
+
+    /*
      * Find similar images (not same file) by external image processing tool.
      */
 
-    /**
+    /*
      * Find most long-used photos in time. (Time difference between the moment
      * when an image was firstly used and when image was lastly used).
      */
 
-    /**
+    /*
      * Traverse all the images to check _id/a.shasum pairs and report groups of size 2 or more
      * (result should be empty).
      */

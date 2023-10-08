@@ -72,18 +72,18 @@ public class MeLocalDataProcessorApp {
         logger.info("Application started, timestamp: {}", startDate);
 
         // 1. Analise images on disk
-        processImages(c);
+        //processImages(c);
 
         // 2. Execute fixes
-        fixDatabaseCollections();
+        //fixDatabaseCollections();
 
         // 3. Print some dataset trivia
         ImageInfo.reportProfilesWithCommonImages();
 
         // 4. Build extended information
-        ImageInterleaver.createP0References(System.out);
-        PostInterleaver.linkPostsToProfiles(System.out);
-        ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
+        //ImageInterleaver.createP0References(System.out);
+        //PostInterleaver.linkPostsToProfiles(System.out);
+        //ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
 
         // Closing application
         Date endDate = new Date();

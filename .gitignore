@@ -44,3 +44,5 @@
 
 # Unix temporary files
 **/nohup.out
+
+**/log

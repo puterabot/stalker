@@ -37,22 +37,14 @@ public class ImageFixes {
         AtomicInteger counter = new AtomicInteger(0);
         AtomicInteger deleteCounter = new AtomicInteger(0);
 
-        ThreadFactory threadFactory = new ThreadFactory() {
-            private final AtomicInteger threadCounter = new AtomicInteger(1);
-
-            @Override
-            public Thread newThread(Runnable r) {
-                String name = String.format("ImageFileDeleter[%03d]", threadCounter.getAndIncrement());
-                return new Thread(r, name);
-            }
-        };
+        ThreadFactory threadFactory = Util.buildThreadFactory("ImageFileDeleter[%03d]");
 
         ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_DELETER_THREADS, threadFactory);
         childImageIterable.forEach((Consumer<? super Document>) imageObject -> {
             executorService.submit(() -> processImageFileDeletion(imageObject, counter, deleteCounter));
         });
         executorService.shutdown();
-        if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
+        if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
             Util.exitProgram("deleteDanglingImages processes taking so long!");
         }
 

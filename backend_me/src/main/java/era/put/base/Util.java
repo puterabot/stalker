@@ -5,6 +5,8 @@ import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.util.Date;
 import java.util.StringTokenizer;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -62,6 +64,21 @@ public class Util {
         long timeDifferenceMilliSeconds = end.getTime() - start.getTime();
         long minutes = timeDifferenceMilliSeconds / (60 * 1000);
         long seconds = (timeDifferenceMilliSeconds / 1000) % 60;
-        logger.info("Elapsed time minutes:seconds -> {}: {}", minutes, seconds);
+        String msg = String.format("Elapsed time minutes:seconds -> %02d:%02d", minutes, seconds);
+        logger.info(msg);
+    }
+
+    public static ThreadFactory buildThreadFactory(String threadNamePattern) {
+        ThreadFactory threadFactory;
+        threadFactory = new ThreadFactory() {
+            private final AtomicInteger threadCounter = new AtomicInteger(1);
+
+            @Override
+            public Thread newThread(Runnable r) {
+                String name = String.format(threadNamePattern, threadCounter.getAndIncrement());
+                return new Thread(r, name);
+            }
+        };
+        return threadFactory;
     }
 }
