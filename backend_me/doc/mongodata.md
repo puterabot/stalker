@@ -175,10 +175,10 @@ but before the post analysis step is started, system will have identified images
 without image data available:
 
 ´´´
-db.image.find({$and: [{a: {$exists: false}}, {d: false}]}).count()
+db.image.find({$and: [{d: false}, {a: {$exists: false}}, {x: {$exists: false}}]}).count()
 ´´´
 
-On this cases, it is needed to have an operation to:
+On this cases, it is needed to have an operation (on the MeLocalDataProcessorApp program) to:
 - Unset d on all this images to let them in an starting state
 - Retry downloading them
 - For the ones where download is failing, continue

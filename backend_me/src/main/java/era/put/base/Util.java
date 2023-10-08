@@ -1,7 +1,9 @@
 package era.put.base;
 
+import era.put.MeLocalDataProcessorApp;
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
+import java.util.Date;
 import java.util.StringTokenizer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,5 +56,12 @@ public class Util {
         fileInputStreamA.close();
         fileInputStreamB.close();
         return false;
+    }
+
+    public static void reportDeltaTime(Date start, Date end) {
+        long timeDifferenceMilliSeconds = end.getTime() - start.getTime();
+        long minutes = timeDifferenceMilliSeconds / (60 * 1000);
+        long seconds = (timeDifferenceMilliSeconds / 1000) % 60;
+        logger.info("Elapsed time minutes:seconds -> {}: {}", minutes, seconds);
     }
 }

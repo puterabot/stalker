@@ -7,8 +7,9 @@ import era.put.base.Configuration;
 import era.put.base.ConfigurationColombia;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
+import era.put.base.Util;
 import era.put.building.FileToolReport;
-import era.put.building.Fixes;
+import era.put.datafixing.Fixes;
 import era.put.building.ImageAnalyser;
 import era.put.building.RepeatedImageDetector;
 import era.put.interleaving.ImageInterleaver;
@@ -62,11 +63,12 @@ public class MeLocalDataProcessorApp {
 
     private static void mainSequence() throws Exception {
         // 0. Global init
+        Date startDate = new Date();
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
         root.setLevel(Level.OFF);
-
-        System.out.println("Application started, timestamp: " + new Date());
         Configuration c = new ConfigurationColombia();
+
+        logger.info("Application started, timestamp: {}", startDate);
 
         // 1. Analise images on disk
         processImages(c);
@@ -81,6 +83,11 @@ public class MeLocalDataProcessorApp {
         ImageInterleaver.createP0References(System.out);
         PostInterleaver.linkPostsToProfiles(System.out);
         ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
+
+        // Closing application
+        Date endDate = new Date();
+        logger.info("Application ended, timestamp: {}", endDate);
+        Util.reportDeltaTime(startDate, endDate);
     }
 
     public static void main(String[] args) {

@@ -1,10 +1,11 @@
-package era.put.building;
+package era.put.datafixing;
 
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import era.put.base.MongoConnection;
 import era.put.base.Util;
+import era.put.building.ImageDownloader;
 import java.io.File;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
