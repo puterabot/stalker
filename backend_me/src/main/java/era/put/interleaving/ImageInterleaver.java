@@ -3,6 +3,8 @@ package era.put.interleaving;
 import com.mongodb.MongoCursorNotFoundException;
 import com.mongodb.MongoTimeoutException;
 import era.put.base.MongoUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.MongoConnection;
@@ -14,6 +16,7 @@ import java.util.List;
 import static com.mongodb.client.model.Filters.exists;
 
 public class ImageInterleaver {
+    private static final Logger logger = LogManager.getLogger(ImageInterleaver.class);
     private static void cleanDuplicates(Document i, ArrayList<ObjectId> p, MongoConnection c, PrintStream out) {
         List<ObjectId> newReferences = new ArrayList<>();
         for (ObjectId id: p) {
@@ -47,17 +50,23 @@ public class ImageInterleaver {
             out.println("= CREATING P0 REFERENCES =========================");
 
             for (Document i: c.image.find(exists("p0", false))) {
-                Object o = i.get("p");
-                if (o == null || !(o instanceof ArrayList)) {
+                Object genericList = i.get("p");
+                if (!(genericList instanceof ArrayList)) {
                     continue;
                 }
-                ArrayList<ObjectId> p = (ArrayList)o;
-                if (p.size() != 1) {
-                    out.println("  - Skipping " + i.getObjectId("_id").toString() + " - it has " + p.size() + " elements");
-                    cleanDuplicates(i, p, c, out);
+                ArrayList<Object> castedList = new ArrayList<>((ArrayList<?>) genericList);
+                ArrayList<ObjectId> objectIds = new ArrayList<>();
+                for (Object o: castedList) {
+                    if (o instanceof ObjectId) {
+                        objectIds.add((ObjectId)o);
+                    }
+                }
+                if (objectIds.size() != 1) {
+                    out.println("  - Skipping " + i.getObjectId("_id").toString() + " - it has " + objectIds.size() + " elements");
+                    cleanDuplicates(i, objectIds, c, out);
                     continue;
                 }
-                Document newDocument = new Document("p0", p.get(0));
+                Document newDocument = new Document("p0", objectIds.get(0));
                 Document filter = new Document("_id", i.getObjectId("_id"));
                 Document query = new Document("$set", newDocument);
                 c.image.updateOne(filter, query);
@@ -65,7 +74,7 @@ public class ImageInterleaver {
             out.println("= P0 REFERENCES CREATED =========================");
         } catch (MongoCursorNotFoundException | MongoTimeoutException e) {
             out.println("ERROR: creating extended profile info");
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 }

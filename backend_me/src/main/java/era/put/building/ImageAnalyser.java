@@ -12,6 +12,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.StringTokenizer;
+import org.bson.types.ObjectId;
 
 public class ImageAnalyser {
     private static String removeCommentFromFileToolReport(String l) {
@@ -151,10 +152,23 @@ public class ImageAnalyser {
     }
 
     public static Date getDateFromUrl(String url, Configuration c) {
-        String start = "https://static1.mileroticos.com/photos/d/";
-        if (!url.startsWith(start)) {
+        String[] starts = {
+            "https://static1.mileroticos.com/photos/d/",
+            "https://static1.mileroticos.com/photos/t1/"
+        };
+        String start = null;
+
+        for (String currentStart: starts) {
+            if (url.startsWith(currentStart)) {
+                start = currentStart;
+                break;
+            }
+        }
+
+        if (start == null) {
             return null;
         }
+
         String tail = url.substring(start.length());
         StringTokenizer parser = new StringTokenizer(tail, "/");
         if (parser.countTokens() < 3) {
@@ -182,14 +196,15 @@ public class ImageAnalyser {
     /**
      * Only file attributes are analyzed, image is not loaded, no pixel information accounted.
      * @param image
-     * @param i
+     * @param imageObject
      */
     public static void processImageFile(
         MongoCollection<Document> image,
-        Document i,
+        Document imageObject,
         FileToolReport fileToolReport,
         PrintStream out) throws Exception {
-        String filename = ImageDownloader.imageFilename(i, out);
+        String _id = ((ObjectId) imageObject.get("_id")).toString();
+        String filename = ImageDownloader.imageFilename(_id, out);
 
         // Check if file exists
         File fd = new File(filename);
@@ -221,7 +236,7 @@ public class ImageAnalyser {
             .build();
 
         // Update info in database
-        Document filter = new Document().append("_id", i.get("_id"));
+        Document filter = new Document().append("_id", imageObject.get("_id"));
         Document newDocument = new Document().append("a", a);
         Document query = new Document("$set", newDocument);
         image.updateOne(filter, query);

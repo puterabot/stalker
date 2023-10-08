@@ -4,6 +4,7 @@ import com.mongodb.client.MongoCollection;
 import era.put.base.Util;
 import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,7 +12,6 @@ import java.io.PrintStream;
 import java.net.URL;
 import java.util.Properties;
 import org.bson.Document;
-import org.bson.types.ObjectId;
 
 public class ImageDownloader {
     private static String ME_IMAGE_DOWNLOAD_PATH;
@@ -37,40 +37,46 @@ public class ImageDownloader {
         try {
             BufferedInputStream inputStream = new BufferedInputStream(new URL(url).openStream());
             FileOutputStream fileOS = new FileOutputStream(absolutePath);
-            byte data[] = new byte[1024];
+            byte[] data = new byte[1024];
             int byteContent;
             while ((byteContent = inputStream.read(data, 0, 1024)) != -1) {
                 fileOS.write(data, 0, byteContent);
             }
             return true;
+        } catch (FileNotFoundException e) {
+            out.println("ERROR: Can not open file to download image");
+            return false;
         } catch (IOException e) {
-            out.println("ERROR: Can not download image");
+            out.println("ERROR: Can not write on to downloaded image file");
             return false;
         }
     }
 
-    public static String imageFilename(Document imageObject, PrintStream out) {
-        String _id = ((ObjectId) imageObject.get("_id")).toString();
+    public static String imageFilename(String _id, PrintStream out) {
         int l = _id.length();
         String subfolder = _id.substring(l - 2, l);
 
         // Check folders
         File root = new File(ME_IMAGE_DOWNLOAD_PATH);
         if (!root.isDirectory()) {
+            out.println("Can not open directory [" + ME_IMAGE_DOWNLOAD_PATH + "]");
             Util.exitProgram("ERROR: Can not write to " + ME_IMAGE_DOWNLOAD_PATH);
         }
 
         // Do subfolder
         File directory = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
         if (directory.exists() && !directory.isDirectory()) {
+            out.println("Not a directory [" + ME_IMAGE_DOWNLOAD_PATH + "]");
             Util.exitProgram("ERROR: Can not write to " + ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
         }
         if (!directory.exists()) {
             if (!directory.mkdir() ) {
+                out.println("Can not create directory [" + ME_IMAGE_DOWNLOAD_PATH + "]");
                 Util.exitProgram("Can not create directory [" + directory.getAbsolutePath() + "]");
             }
             directory = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
             if (!directory.isDirectory()) {
+                out.println("Not a directory [" + ME_IMAGE_DOWNLOAD_PATH + "]");
                 Util.exitProgram("ERROR: Can not verify write to " + ME_IMAGE_DOWNLOAD_PATH + "/" + subfolder);
             }
         }
@@ -83,14 +89,17 @@ public class ImageDownloader {
             return false;
         }
         String url = imageObject.getString("url");
-        String imageFile = imageFilename(imageObject, out);
+        String _id = imageObject.get("_id").toString();
+        String imageFile = imageFilename(_id, out);
 
         File fd = new File(imageFile);
+        boolean status;
         if (fd.exists() && fd.isFile()) {
-            return false;
+            status = true;
+        } else {
+            status = downloadImageFromNet(imageFile, url, out);
         }
 
-        boolean status = downloadImageFromNet(imageFile, url, out);
         Document filter = new Document().append("_id", imageObject.get("_id"));
         Document newDocument = new Document().append("d", status);
         Document query = new Document().append("$set", newDocument);

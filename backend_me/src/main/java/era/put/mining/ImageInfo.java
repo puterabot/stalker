@@ -27,25 +27,27 @@ public class ImageInfo {
     reportProfilesWithCommonImagesForPivot(
         MongoCollection<Document> image,
         MongoCollection<Document> profile,
-        Document pivot) {
-        ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(pivot);
+        Document imagePivotObject) {
+        ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(imagePivotObject);
         if (attrPivot == null) {
             return;
         }
-        ObjectId parentPivot = MongoUtil.getImageParentProfileId(pivot);
+        ObjectId parentPivot = MongoUtil.getImageParentProfileId(imagePivotObject);
         if (parentPivot == null) {
             return;
         }
-        String filenamePivot = ImageDownloader.imageFilename(pivot, System.out);
+        String _id = ((ObjectId)imagePivotObject.get("_id")).toString();
+        String filenamePivot = ImageDownloader.imageFilename(_id, System.out);
 
         // Build candidate set
         List<Document> candidateSet = new ArrayList<>();
         Document filter = new Document().append("a.shasum", attrPivot.getShasum()).append("x", true);
         for (Document i: image.find(filter).sort(new BasicDBObject("md", 1))) {
-            // 1. Extract pair [pivot, i]
+            // 1. Extract pair [imagePivotObject, i]
             ImageFileAttributes attrI = MongoUtil.getImageAttributes(i);
             ObjectId parentI = MongoUtil.getImageParentProfileId(i);
-            String filenameI = ImageDownloader.imageFilename(i, System.out);
+            String _idI = ((ObjectId) i.get("_id")).toString();
+            String filenameI = ImageDownloader.imageFilename(_idI, System.out);
 
             // 2. Compare by attributes
             if (attrPivot.compareTo(attrI) != 0) {

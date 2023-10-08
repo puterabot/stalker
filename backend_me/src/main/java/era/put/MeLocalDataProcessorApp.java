@@ -38,7 +38,7 @@ public class MeLocalDataProcessorApp {
         }
 
         // Download images
-        Fixes.deleteDanglingImages(mongoConnection.image);
+        Fixes.deleteChildImageFiles(mongoConnection.image);
         Fixes.downloadMissingImages(mongoConnection.image);
 
         // Gather information from image files
