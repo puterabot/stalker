@@ -21,12 +21,16 @@ dependencies {
     implementation 'ch.qos.logback:logback-classic:1.4.11'
 }
 
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:unchecked"
+}
+
 ext {
     selectedMainClassShort = project.hasProperty('app') ? "com.example.${project.property('app')}" : 'era.put.MeBotSeleniumApp'
 }
 
 application {
-    mainClassName = selectedMainClassShort
+    mainClass.set(selectedMainClassShort)
 }
 
 run {

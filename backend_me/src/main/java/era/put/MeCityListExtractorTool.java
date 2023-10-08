@@ -25,7 +25,7 @@ public class MeCityListExtractorTool {
     private static final Logger logger = LogManager.getLogger(MeCityListExtractorTool.class);
 
     private static String normalize(String input) {
-        Map<String, String> accentsToFlat = new HashMap();
+        Map<String, String> accentsToFlat = new HashMap<>();
         accentsToFlat.put("á", "a");
         accentsToFlat.put("é", "e");
         accentsToFlat.put("í", "i");

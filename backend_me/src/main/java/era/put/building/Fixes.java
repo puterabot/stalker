@@ -1,5 +1,6 @@
 package era.put.building;
 
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import era.put.base.MongoConnection;
@@ -20,7 +21,19 @@ public class Fixes {
         logger.info("= DELETING DANGLING FILES =");
         int count = 0;
         int pending = 0;
-        for (Document d: image.find(query)) {
+
+        FindIterable<Document> imageIterable = image.find(query);
+
+        int n = 0;
+        for (Document d: imageIterable) {
+            n++;
+        }
+
+        imageIterable = image.find(query);
+        logger.info("Number of images with 'x' reference to a parent image: " + n);
+        logger.info("Deleting the image files for those.");
+
+        for (Document d: imageIterable) {
             Object x = d.get("x");
             if (x == null) {
                 pending++;
@@ -30,6 +43,9 @@ public class Fixes {
                 if (fd.exists()) {
                     if (fd.delete()) {
                         count++;
+                        if (count % 0 == 100) {
+                            logger.info("{} deleted so far", count);
+                        }
                     } else {
                         logger.error("Cannot delete " + filename);
                     }

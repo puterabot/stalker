@@ -30,3 +30,4 @@ To run:
 where **mainClass** is one of the following:
 - **MeCityListExtractorTool**: to be executed once per country, connects to ME site and browse regions and cities. This is useful to create or update configuration classes.
 - **MeBotSeleniumApp**: default main class use, main web crawler to get post, profile and image information.
+- **MeLocalDataProcessorApp**:  after having some downloaded posts, profiles and images, executes data cleanup, image processing and other analysis steps, as such face extraction and neural network trainning.

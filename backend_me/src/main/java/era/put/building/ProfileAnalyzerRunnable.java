@@ -30,7 +30,7 @@ import org.openqa.selenium.WebElement;
 
 public class ProfileAnalyzerRunnable implements Runnable {
     private static final Logger logger = LogManager.getLogger(ProfileAnalyzerRunnable.class);
-    private ConcurrentLinkedQueue<Integer> availableProfileComputeElements;
+    private final ConcurrentLinkedQueue<Integer> availableProfileComputeElements;
     private int id;
     private PrintStream out;
     private Configuration c;
@@ -492,26 +492,36 @@ public class ProfileAnalyzerRunnable implements Runnable {
                         d.quit();
                         endThread(111);
                     }
-                    ArrayList<Object> l = (ArrayList<Object>) imageObject.get("p");
-                    boolean imageExistsInArray = false;
-                    for (Object o: l) {
-                        if (!(o instanceof ObjectId)) {
-                            out.println("ERROR: Image " + img + " has post relationships array with elements of invalid type " + o.getClass().getName());
-                            d.quit();
-                            endThread(112);
+                    Object arrayCandidate = imageObject.get("p");
+                    if (arrayCandidate == null) {
+                        logger.error("Fatal: arrayCandidate is null");
+                        Util.exitProgram("null arrayCandidate");
+                    } else if (arrayCandidate instanceof ArrayList<?> genericList) {
+                        ArrayList<Object> castedList = new ArrayList<>(genericList);
+                        boolean imageExistsInArray = false;
+                        for (Object o : castedList) {
+                            if (!(o instanceof ObjectId)) {
+                                out.println("ERROR: Image " + img + " has post relationships array with elements of invalid type " + o.getClass().getName());
+                                d.quit();
+                                endThread(112);
+                            }
+                            ObjectId element = (ObjectId) o;
+                            if (element.equals(p.get("_id"))) {
+                                imageExistsInArray = true;
+                                break;
+                            }
                         }
-                        ObjectId element = (ObjectId) o;
-                        if (element.equals(p.get("_id"))) {
-                            imageExistsInArray = true;
-                            break;
+                        if (!imageExistsInArray) {
+                            Object element = p.get("_id");
+                            castedList.add(element);
+                            Document o = new Document().append("_id", imageObject.get("_id"));
+                            newDocument = new Document().append("p", castedList);
+                            query = new Document().append("$set", newDocument);
+                            mongoConnection.image.updateOne(o, query);
                         }
-                    }
-                    if (!imageExistsInArray) {
-                        l.add(p.get("_id"));
-                        Document o = new Document().append("_id", imageObject.get("_id"));
-                        newDocument = new Document().append("p", l);
-                        query = new Document().append("$set", newDocument);
-                        mongoConnection.image.updateOne(o, query);
+                    } else {
+                        logger.error("Fatal: arrayCandidate of unsupported class " + arrayCandidate.getClass().getName());
+                        Util.exitProgram("Wrong class on arrayCandidate");
                     }
 
                     // Download image! :)

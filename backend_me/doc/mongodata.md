@@ -168,6 +168,24 @@ This should give 0
 - It is important to detect, modify those images to remove the borders and resave shasum
   data on database for both the parent image and all of its siblings
 
+## Images unable to download
+
+For one reason or another, such a ME user deleting her profile just after the post download step is done
+but before the post analysis step is started, system will have identified images with _id and url, but
+without image data available:
+
+´´´
+db.image.find({$and: [{a: {$exists: false}}, {d: false}]}).count()
+´´´
+
+On this cases, it is needed to have an operation to:
+- Unset d on all this images to let them in an starting state
+- Retry downloading them
+- For the ones where download is failing, continue
+- Search for all profiles using this images and unlink them
+- Delete the image not possible to be downloaded (previous query should return 0)
+- Search for all profiles that after this operation remain with 0 images and delete them
+
 ## Useful queries
 
 ### To list attributes on a collection

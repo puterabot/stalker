@@ -3,18 +3,14 @@ package era.put;
 // Java
 import era.put.base.MongoUtil;
 import era.put.base.SeleniumUtil;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 // Mongo
-import com.mongodb.BasicDBObject;
-import com.mongodb.client.model.Filters;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.bson.Document;
 
 // Logging
 import org.openqa.selenium.By;
@@ -28,20 +24,12 @@ import era.put.base.Configuration;
 import era.put.base.ConfigurationColombia;
 import era.put.base.MongoConnection;
 import era.put.base.Util;
-import era.put.building.FileToolReport;
-import era.put.building.Fixes;
-import era.put.building.ImageAnalyser;
 import era.put.building.ParallelWorksetBuilders;
 import era.put.building.ProfileAnalyzerRunnable;
 import era.put.building.PostAnalyzerRunnable;
 import era.put.building.PostSearchElement;
 import era.put.building.PostComputeElement;
 import era.put.building.PostSearcherRunnable;
-import era.put.building.RepeatedImageDetector;
-import era.put.interleaving.ImageInterleaver;
-import era.put.interleaving.PostInterleaver;
-import era.put.interleaving.ProfileInfoInterleaver;
-import era.put.mining.ImageInfo;
 
 public class MeBotSeleniumApp {
     private static final Logger logger = LogManager.getLogger(MeBotSeleniumApp.class);
@@ -81,7 +69,6 @@ public class MeBotSeleniumApp {
     }
 
     /**
-     *
      * @param c
      * @throws InterruptedException
      */
@@ -142,41 +129,6 @@ public class MeBotSeleniumApp {
         System.out.println("Post listings downloaded, timestamp: " + new Date());
     }
 
-    private static void processImages(Configuration c) throws Exception {
-        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
-        if (mongoConnection == null) {
-            return;
-        }
-
-        // Update image date if not present
-        for (Document i: mongoConnection.image.find(Filters.exists("md", false))) {
-            ImageAnalyser.updateDate(mongoConnection.image, i, c);
-        }
-
-        // Download images
-        Fixes.deleteDanglingImages(mongoConnection.image);
-        Fixes.downloadMissingImages(mongoConnection.image);
-
-        // Gather information from image files
-        FileToolReport fileToolReport = new FileToolReport();
-        Document filter = new Document("a", new BasicDBObject("$exists", false)).append("d", true);
-        for (Document i: mongoConnection.image.find(filter)) {
-            ImageAnalyser.processImageFile(mongoConnection.image, i, fileToolReport, System.out);
-        }
-        fileToolReport.print();
-        RepeatedImageDetector.groupImages(mongoConnection.image);
-    }
-
-    private static void fixDatabaseCollections() throws Exception {
-        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
-        if (mongoConnection == null) {
-            return;
-        }
-
-        Fixes.fixPostCollection(mongoConnection.post);
-        Fixes.fixRelationships(mongoConnection);
-    }
-
     public static void panicCheck(WebDriver webDriver) {
         WebElement iconCheck = webDriver.findElement(By.id("logo"));
         if (iconCheck == null) {
@@ -202,27 +154,13 @@ public class MeBotSeleniumApp {
         Configuration c = new ConfigurationColombia();
 
         // 1. Download new post urls from list pages and store them by id on post database collection
-        processPostListings(c);
+        //processPostListings(c);
 
         // 2. Download known profiles in depth
-        processProfileInDepthSearch(c);
+        //processProfileInDepthSearch(c);
 
         // 3. Download new profiles detail
         processNotDownloadedProfiles(c);
-
-        // 4. Analise images on disk
-        processImages(c);
-
-        // 5. Execute fixes
-        fixDatabaseCollections();
-
-        // 6. Print some dataset trivia
-        ImageInfo.reportProfilesWithCommonImages();
-
-        // 7. Build extended information
-        ImageInterleaver.createP0References(System.out);
-        PostInterleaver.linkPostsToProfiles(System.out);
-        ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
 
         // 8. Close
         System.out.println("Program ended, timestamp: " + new Date());
