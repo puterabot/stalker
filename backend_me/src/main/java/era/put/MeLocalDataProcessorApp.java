@@ -12,6 +12,7 @@ import era.put.building.FileToolReport;
 import era.put.datafixing.Fixes;
 import era.put.building.ImageAnalyser;
 import era.put.building.RepeatedImageDetector;
+import era.put.datafixing.ImageFixes;
 import era.put.interleaving.ImageInterleaver;
 import era.put.interleaving.PostInterleaver;
 import era.put.interleaving.ProfileInfoInterleaver;
@@ -38,8 +39,8 @@ public class MeLocalDataProcessorApp {
         }
 
         // Download images
-        Fixes.deleteChildImageFiles(mongoConnection.image);
-        Fixes.downloadMissingImages(mongoConnection.image);
+        ImageFixes.deleteChildImageFiles(mongoConnection.image);
+        ImageFixes.downloadMissingImages(mongoConnection.image);
 
         // Gather information from image files
         FileToolReport fileToolReport = new FileToolReport();
