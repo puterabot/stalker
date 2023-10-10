@@ -157,7 +157,7 @@ public class MeBotSeleniumApp {
         //processPostListings(c);
 
         // 2. Download known profiles in depth
-        //processProfileInDepthSearch(c);
+        processProfileInDepthSearch(c);
 
         // 3. Download new profiles detail
         processNotDownloadedProfiles(c);

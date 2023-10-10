@@ -33,16 +33,13 @@ public class MeLocalDataProcessorApp {
             return;
         }
 
-        // Update image date if not present
-        for (Document i: mongoConnection.image.find(Filters.exists("md", false))) {
-            ImageAnalyser.updateDate(mongoConnection.image, i, c);
-        }
-
-        // Download images
+        updateImageDates(c, mongoConnection);
         ImageFixes.deleteChildImageFiles(mongoConnection.image);
         ImageFixes.downloadMissingImages(mongoConnection.image);
+        buildImageSizeAndShaSumDescriptors(mongoConnection);
+    }
 
-        // Gather information from image files
+    private static void buildImageSizeAndShaSumDescriptors(MongoConnection mongoConnection) throws Exception {
         FileToolReport fileToolReport = new FileToolReport();
         Document filter = new Document("a", new BasicDBObject("$exists", false)).append("d", true);
         for (Document i: mongoConnection.image.find(filter)) {
@@ -50,6 +47,12 @@ public class MeLocalDataProcessorApp {
         }
         fileToolReport.print();
         RepeatedImageDetector.groupImages(mongoConnection.image);
+    }
+
+    private static void updateImageDates(Configuration c, MongoConnection mongoConnection) {
+        for (Document i: mongoConnection.image.find(Filters.exists("md", false))) {
+            ImageAnalyser.updateDate(mongoConnection.image, i, c);
+        }
     }
 
     private static void fixDatabaseCollections() throws Exception {
@@ -72,18 +75,18 @@ public class MeLocalDataProcessorApp {
         logger.info("Application started, timestamp: {}", startDate);
 
         // 1. Analise images on disk
-        //processImages(c);
+        processImages(c);
 
         // 2. Execute fixes
-        //fixDatabaseCollections();
+        fixDatabaseCollections();
 
         // 3. Print some dataset trivia
         ImageInfo.reportProfilesWithCommonImages();
 
         // 4. Build extended information
-        //ImageInterleaver.createP0References(System.out);
-        //PostInterleaver.linkPostsToProfiles(System.out);
-        //ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
+        ImageInterleaver.createP0References(System.out);
+        PostInterleaver.linkPostsToProfiles(System.out);
+        ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
 
         // Closing application
         Date endDate = new Date();

@@ -27,14 +27,8 @@ public class ParallelWorksetBuilders {
 
     public static ConcurrentLinkedQueue<Integer> buildProfileComputeSet(MongoConnection mongoConnection) {
         ConcurrentLinkedQueue<Integer> availableProfileComputeElements = new ConcurrentLinkedQueue<>();
-        List<Integer> linearOrder = new ArrayList<>();
         for (Document p : mongoConnection.post.find(exists("p", false))) {
-            linearOrder.add(p.getInteger("i"));
-        }
-
-        // Reverse order
-        for (int i = linearOrder.size() - 1; i >= 0; i--) {
-            availableProfileComputeElements.add(linearOrder.get(i));
+            availableProfileComputeElements.add(p.getInteger("i"));
         }
         return availableProfileComputeElements;
     }

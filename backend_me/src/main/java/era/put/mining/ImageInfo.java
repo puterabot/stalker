@@ -20,11 +20,7 @@ import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
 import era.put.base.Util;
-import era.put.building.ImageDownloader;
 import era.put.building.ImageFileAttributes;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class ImageInfo {
     private static final Logger logger = LogManager.getLogger(ImageInfo.class);
@@ -33,7 +29,6 @@ public class ImageInfo {
     private static void
     reportProfilesWithCommonImagesForPivot(
         MongoCollection<Document> image,
-        MongoCollection<Document> profile,
         Document parentImageObject,
         ConcurrentHashMap<String, Set<String>> groups,
         AtomicInteger totalImagesProcessed,
@@ -127,7 +122,7 @@ public class ImageInfo {
         parentImageIterable.forEach((Consumer<? super Document>) parentImageObject ->
             executorService.submit(() ->
                 reportProfilesWithCommonImagesForPivot(
-                    mongoConnection.image, mongoConnection.profile, parentImageObject, externalMatches,
+                    mongoConnection.image, parentImageObject, externalMatches,
                     totalImagesProcessed, externalMatchCounter)
             )
         );
@@ -141,15 +136,58 @@ public class ImageInfo {
             logger.error(e);
         }
 
-        reportGroups(externalMatches);
+        reportGroups(externalMatches, mongoConnection.profileInfo);
 
         logger.info("Total parent images processed: {}", totalImagesProcessed.get());
         logger.info("External matches skipped: {}", externalMatchCounter.get());
         logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
     }
 
-    private static void reportGroups(ConcurrentHashMap<String, Set<String>> externalMatches) {
+    private static void reportGroups(ConcurrentHashMap<String, Set<String>> externalMatches, MongoCollection<Document> profileInfo) {
+        logger.info("--------------------------------------------------------------------------------------");
         logger.info("Detected groups: {}", externalMatches.size());
+        int min = Integer.MAX_VALUE;
+        int max = 0;
+        for (String imageId: externalMatches.keySet()) {
+            Set<String> profileHints = externalMatches.get(imageId);
+            int n = profileHints.size();
+            if (n > max) {
+                max = n;
+            }
+            if (n < min) {
+                min = n;
+            }
+
+            if (n == 18) {
+                logger.info("Group:");
+                for (String profileId: profileHints) {
+                    Document filter = new Document("_id", new ObjectId(profileId));
+                    FindIterable<Document> profileIterable = profileInfo.find(filter)
+                            .projection(Projections.include("p", "firstPostDate", "lastPostDate", "numPosts", "numImages", "lastLocation", "lastService"))
+                            .sort(new BasicDBObject("p", 1));
+                    profileIterable.forEach((Consumer<? super Document>)p -> {
+                        logger.info("phone: {}", p.get("p"));
+                        logger.info("  . firstPostDate: {}", p.get("firstPostDate"));
+                        logger.info("  . lastPostDate: {}", p.get("lastPostDate"));
+                        logger.info("  . numPosts: {}", p.get("numPosts"));
+                        logger.info("  . numImages: {}", p.get("numImages"));
+                        logger.info("  . lastLocation: {}", p.get("lastLocation"));
+                        logger.info("  . lastService: {}", p.get("lastService"));
+                    });
+                }
+            }
+        }
+        logger.info("Minimum group size: {}", min);
+        logger.info("Maximum group size: {}", max);
+
+        Set<String> totalProfiles = new TreeSet<>();
+        for (Set<String> subgroups: externalMatches.values()) {
+            totalProfiles.addAll(subgroups);
+        }
+
+        logger.info("Profiles with repeated image relationship hints: {}", totalProfiles.size());
+
+        logger.info("--------------------------------------------------------------------------------------");
     }
 
     /*

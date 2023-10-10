@@ -19,6 +19,7 @@ dependencies {
     implementation 'org.apache.logging.log4j:log4j-core:2.20.0'
     implementation 'ru.yandex.qatools.ashot:ashot:1.5.4'
     implementation 'ch.qos.logback:logback-classic:1.4.11'
+    implementation 'org.jgrapht:jgrapht-core:1.5.2'
 }
 
 tasks.withType(JavaCompile) {
