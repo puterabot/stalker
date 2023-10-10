@@ -97,7 +97,7 @@ public class ImageInfo {
      * Test disabled: previous results are empty.
      */
     public static void
-    reportProfilesWithCommonImages() {
+    deleteExternalChildImages() {
         MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
         if (mongoConnection == null) {
             return;

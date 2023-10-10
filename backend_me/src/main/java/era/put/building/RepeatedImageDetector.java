@@ -23,13 +23,13 @@ public class RepeatedImageDetector {
     private static final Logger logger = LogManager.getLogger(RepeatedImageDetector.class);
     public static int maxGroupSize = 0;
 
-    private static void markAsReferenceAndRemoveFile(Document imageObject, Document parent, MongoCollection<Document> image) {
-        Document newDocument = new Document().append("x", parent.get("_id"));
-        Document filter = new Document().append("_id", imageObject.get("_id"));
+    private static void markAsReferenceAndRemoveFile(Document childImageDocument, Document parentImageDocument, MongoCollection<Document> image) {
+        Document newDocument = new Document().append("x", parentImageDocument.get("_id"));
+        Document filter = new Document().append("_id", childImageDocument.get("_id"));
         Document query = new Document().append("$set", newDocument);
         image.updateOne(filter, query);
 
-        String _id = ((ObjectId) imageObject.get("_id")).toString();
+        String _id = ((ObjectId) childImageDocument.get("_id")).toString();
         String filenameToRemove = ImageDownloader.imageFilename(_id, System.out);
         File fd = new File(filenameToRemove);
         if (fd.exists()) {
@@ -39,7 +39,7 @@ public class RepeatedImageDetector {
         }
     }
 
-    private static void processGroupCandidatesForImage(MongoCollection<Document> image, Document imagePivotObject) {
+    private static void deleteInternalChildImages(MongoCollection<Document> image, Document imagePivotObject) {
         ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(imagePivotObject);
         if (attrPivot == null) {
             return;
@@ -132,7 +132,7 @@ public class RepeatedImageDetector {
         try {
             System.out.println("= DETECTING REPEATED IMAGES ==========================================================");
             for (Document i : image.find(exists("x", false))) {
-                processGroupCandidatesForImage(image, i);
+                deleteInternalChildImages(image, i);
             }
             System.out.println("= DETECTING REPEATED IMAGES PROCESS COMPLETE =========================================");
         } catch (MongoCursorNotFoundException | MongoTimeoutException e) {

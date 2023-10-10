@@ -1,10 +1,18 @@
 package era.put.datafixing;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
+import era.put.MeLocalDataProcessorApp;
+import era.put.base.Configuration;
+import era.put.base.MongoConnection;
 import era.put.base.Util;
+import era.put.building.FileToolReport;
+import era.put.building.ImageAnalyser;
 import era.put.building.ImageDownloader;
+import era.put.building.RepeatedImageDetector;
 import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -83,5 +91,27 @@ public class ImageFixes {
             }
         }
         logger.info("= DOWNLOADED " + count + " IMAGES =");
+    }
+
+    public static void updateImageDates(Configuration c, MongoConnection mongoConnection) {
+        for (Document i: mongoConnection.image.find(exists("md", false))) {
+            ImageAnalyser.updateDate(mongoConnection.image, i, c);
+        }
+    }
+
+    public static void buildImageSizeAndShaSumDescriptors(MongoConnection mongoConnection) throws Exception {
+        FileToolReport fileToolReport = new FileToolReport();
+        Document filter = new Document("a", new BasicDBObject("$exists", false)).append("d", true);
+        FindIterable<Document> imageWithNoDescriptorsIterable = mongoConnection.image.find(filter);
+        imageWithNoDescriptorsIterable.forEach((Consumer<? super Document>)imageDocument -> {
+            // TODO: Can parallelize this
+            try {
+                ImageAnalyser.processImageFile(mongoConnection.image, imageDocument, fileToolReport, System.out);
+            } catch (Exception e) {
+                logger.error(e);
+            }
+        });
+        fileToolReport.print();
+        RepeatedImageDetector.groupImages(mongoConnection.image);
     }
 }
