@@ -186,10 +186,22 @@ On this cases, it is needed to have an operation (on the MeLocalDataProcessorApp
 - Delete the image not possible to be downloaded (previous query should return 0)
 - Search for all profiles that after this operation remain with 0 images and delete them
 
+## Profiles with null first and last dates
+
+Example case: 3184863478
+
+There are some profiles with correctly linked image data and/or post data with null dates on info
+report. Should rebuild them.
+
+```
+db.profileInfo.find({firstPostDate: null}).count()
+```
+
 ## Useful queries
 
 ### To list attributes on a collection
 
+```
 var distinctAttributes = new Set();
 db.post.find().forEach(function(document) {
     for (var key in document) {
@@ -198,3 +210,4 @@ db.post.find().forEach(function(document) {
 });
 var sortedAttributes = Array.from(distinctAttributes).sort();
 printjson(sortedAttributes);
+```
