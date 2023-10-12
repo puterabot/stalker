@@ -24,7 +24,7 @@ Project can be imported on a IDE development tool as such Intellij.
 To run:
 
 ```
-./gradlew -Papp=<mainClass>
+./gradlew run -Papp=<mainClass>
 ```
 
 where **mainClass** is one of the following:

@@ -27,7 +27,7 @@ tasks.withType(JavaCompile) {
 }
 
 ext {
-    selectedMainClassShort = project.hasProperty('app') ? "com.example.${project.property('app')}" : 'era.put.MeBotSeleniumApp'
+    selectedMainClassShort = project.hasProperty('app') ? "era.put.${project.property('app')}" : 'era.put.MeBotSeleniumApp'
 }
 
 application {

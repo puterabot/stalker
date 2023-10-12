@@ -6,6 +6,9 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Projections;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
+import era.put.base.Util;
+import era.put.building.ImageFileAttributes;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -19,12 +22,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
-import era.put.base.Util;
-import era.put.building.ImageFileAttributes;
+import org.jgrapht.Graph;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.SimpleGraph;
+import org.jgrapht.alg.connectivity.ConnectivityInspector;
 
 public class ImageInfo {
     private static final Logger logger = LogManager.getLogger(ImageInfo.class);
-    private static final int NUMBER_OF_REPORTER_THREADS = 24;
+    private static final int NUMBER_OF_REPORTER_THREADS = 72;
 
     private static void
     reportProfilesWithCommonImagesForPivot(
@@ -34,7 +39,7 @@ public class ImageInfo {
         AtomicInteger totalImagesProcessed,
         AtomicInteger externalMatchCounter) {
         int n = totalImagesProcessed.incrementAndGet();
-        if (n % 20000 == 0) {
+        if (n % 100000 == 0) {
             logger.info("No repeated images ({})", n);
         }
 
@@ -145,7 +150,7 @@ public class ImageInfo {
 
     private static void reportGroups(ConcurrentHashMap<String, Set<String>> externalMatches, MongoCollection<Document> profileInfo) {
         logger.info("--------------------------------------------------------------------------------------");
-        logger.info("Detected groups: {}", externalMatches.size());
+        logger.info("Detected image hint sets: {}", externalMatches.size());
         int min = Integer.MAX_VALUE;
         int max = 0;
         for (String imageId: externalMatches.keySet()) {
@@ -158,6 +163,7 @@ public class ImageInfo {
                 min = n;
             }
 
+            /*
             if (n == 18) {
                 logger.info("Group:");
                 for (String profileId: profileHints) {
@@ -176,9 +182,10 @@ public class ImageInfo {
                     });
                 }
             }
+            */
         }
-        logger.info("Minimum group size: {}", min);
-        logger.info("Maximum group size: {}", max);
+        logger.info("Minimum image hint set size (images with less usages are re-used this times): {}", min);
+        logger.info("Maximum image hint set size (images with most usages are re-used this times): {}", max);
 
         Set<String> totalProfiles = new TreeSet<>();
         for (Set<String> subgroups: externalMatches.values()) {
@@ -186,6 +193,56 @@ public class ImageInfo {
         }
 
         logger.info("Profiles with repeated image relationship hints: {}", totalProfiles.size());
+
+        logger.info("--------------------------------------------------------------------------------------");
+        Graph<String, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
+        for (String node: totalProfiles) {
+            graph.addVertex(node);
+        }
+
+        for (String imageId: externalMatches.keySet()) {
+            Set<String> profileHints = externalMatches.get(imageId);
+            List<String> profileHintsList = profileHints.stream().toList();
+            for (int i = 1; i < profileHintsList.size(); i++) {
+                String currentProfile = profileHintsList.get(i);
+                graph.addEdge(profileHintsList.get(0), currentProfile);
+            }
+        }
+
+        ConnectivityInspector<String, DefaultEdge> inspector = new ConnectivityInspector<>(graph);
+        List<Set<String>> connectedComponents = inspector.connectedSets();
+
+        min = Integer.MAX_VALUE;
+        max = 0;
+        int pairsCount = 0;
+        for (Set<String> group: connectedComponents) {
+            int n = group.size();
+            if (n > max) {
+                max = n;
+            }
+            if (n < min) {
+                min = n;
+            }
+            if (n == 2) {
+                pairsCount++;
+            }
+            if (n > 100) {
+                StringBuilder msg = new StringBuilder();
+                logger.info("Group of {} profiles:", n);
+                for (String profileId: group) {
+                    FindIterable<Document> profileIterable = profileInfo.find(new Document("_id", new ObjectId(profileId)));
+                    for (Document p: profileIterable) {
+                        msg.append(p.get("p").toString());
+                        msg.append(",");
+                    }
+                }
+                logger.info(msg.toString());
+            }
+        }
+        logger.info("Profile groups found: {}", connectedComponents.size());
+        logger.info("Pairs (2-sized groups) found: {}", pairsCount);
+        logger.info("Minimum profile group size: {}", min);
+        logger.info("Maximum profile group size: {}", max);
 
         logger.info("--------------------------------------------------------------------------------------");
     }

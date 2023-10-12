@@ -154,7 +154,7 @@ public class MeBotSeleniumApp {
         Configuration c = new ConfigurationColombia();
 
         // 1. Download new post urls from list pages and store them by id on post database collection
-        //processPostListings(c);
+        processPostListings(c);
 
         // 2. Download known profiles in depth
         processProfileInDepthSearch(c);

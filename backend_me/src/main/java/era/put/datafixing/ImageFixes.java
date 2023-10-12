@@ -29,7 +29,7 @@ import static com.mongodb.client.model.Filters.exists;
 
 public class ImageFixes {
     private static final Logger logger = LogManager.getLogger(ImageFixes.class);
-    private static final int NUMBER_OF_DELETER_THREADS = 24;
+    private static final int NUMBER_OF_DELETER_THREADS = 72;
 
     /**
     An image is a "child" when its register at the database is not true and contains an ObjectId reference
