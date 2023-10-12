@@ -30,6 +30,7 @@ import static com.mongodb.client.model.Filters.exists;
 public class ImageFixes {
     private static final Logger logger = LogManager.getLogger(ImageFixes.class);
     private static final int NUMBER_OF_DELETER_THREADS = 72;
+    private static final int NUMBER_OF_IMAGE_DESCRIPTOR_ANALYZER_THREADS = 72;
 
     /**
     An image is a "child" when its register at the database is not true and contains an ObjectId reference
@@ -64,7 +65,7 @@ public class ImageFixes {
         if (parentId instanceof ObjectId) {
             int n = counter.incrementAndGet();
             if (n % 100000 == 0) {
-                logger.info("Processed so far: " + n);
+                logger.info("Images processed so far: " + n);
             }
             String _id = ((ObjectId) imageObject.get("_id")).toString();
             String filename = ImageDownloader.imageFilename(_id, System.out);
@@ -103,14 +104,26 @@ public class ImageFixes {
         FileToolReport fileToolReport = new FileToolReport();
         Document filter = new Document("a", new BasicDBObject("$exists", false)).append("d", true);
         FindIterable<Document> imageWithNoDescriptorsIterable = mongoConnection.image.find(filter);
+
+        ThreadFactory threadFactory = Util.buildThreadFactory("ImagesSizeAndShaDescriptorCreator[%03d]");
+        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_IMAGE_DESCRIPTOR_ANALYZER_THREADS, threadFactory);
+        AtomicInteger totalImagesProcessed = new AtomicInteger(0);
+
         imageWithNoDescriptorsIterable.forEach((Consumer<? super Document>)imageDocument -> {
-            // TODO: Can parallelize this
-            try {
-                ImageAnalyser.processImageFile(mongoConnection.image, imageDocument, fileToolReport, System.out);
-            } catch (Exception e) {
-                logger.error(e);
-            }
+            executorService.submit(() ->
+                ImageAnalyser.processImageFile(mongoConnection.image, imageDocument, fileToolReport, System.out, totalImagesProcessed)
+            );
         });
+
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
+                logger.error("Image descriptor analyzer threads taking so long!");
+            }
+        } catch (InterruptedException e) {
+            logger.error(e);
+        }
+
         fileToolReport.print();
         RepeatedImageDetector.groupImages(mongoConnection.image);
     }

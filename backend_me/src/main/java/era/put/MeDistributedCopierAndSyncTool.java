@@ -200,7 +200,7 @@ public class MeDistributedCopierAndSyncTool {
     }
 
     private static void startX11Sessions() throws Exception {
-        Thread[] threads = new Thread[3 * NUMBER_OF_DISTRIBUTED_AGENTS];
+        Thread[] threads = new Thread[4 * NUMBER_OF_DISTRIBUTED_AGENTS];
         int t = 0;
         int dx = 0;
         int dy = 0;
@@ -230,6 +230,15 @@ public class MeDistributedCopierAndSyncTool {
         }
 
         for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
+            logger.info("----- Disabling screen saver for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
+            String sshConnection = getSshConnectionString(i);
+            String command = "ssh " + sshConnection + " xset s off -display :" + (100 + i);
+            threads[t] = runAsyncCommand(command, i);
+            threads[t].start();
+            t++;
+        }
+
+        for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
             logger.info("----- Starting mwm for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
             String sshConnection = getSshConnectionString(i);
             String projectFolder = getUserFolder(i) + "/usr/paradigmas/stalker/backend_me";
@@ -240,13 +249,13 @@ public class MeDistributedCopierAndSyncTool {
             t++;
         }
 
-        for (int i = 0; i < 3 * NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
+        for (int i = 0; i < 4 * NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
             threads[i].join();
         }
     }
     public static void main(String[] args) {
         try {
-            copyProjectToDistributedAgents();
+            //copyProjectToDistributedAgents();
             syncApplicationPropertiesWithDistributedAgents();
             startX11Sessions();
         } catch (Exception e) {

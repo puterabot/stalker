@@ -40,7 +40,7 @@ public class ImageInfo {
         AtomicInteger externalMatchCounter) {
         int n = totalImagesProcessed.incrementAndGet();
         if (n % 100000 == 0) {
-            logger.info("No repeated images ({})", n);
+            logger.info("Images processed for internal profile repetitions ({})", n);
         }
 
         ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(parentImageObject);
@@ -124,7 +124,7 @@ public class ImageInfo {
         ConcurrentHashMap<String, Set<String>> externalMatches; // imageId vs set of profileId :)
         externalMatches = new ConcurrentHashMap<>();
 
-        parentImageIterable.forEach((Consumer<? super Document>) parentImageObject ->
+        parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
             executorService.submit(() ->
                 reportProfilesWithCommonImagesForPivot(
                     mongoConnection.image, parentImageObject, externalMatches,

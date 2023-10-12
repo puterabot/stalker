@@ -1,6 +1,9 @@
 package era.put.building;
 
 import com.mongodb.client.MongoCollection;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import era.put.base.Configuration;
 
@@ -15,6 +18,7 @@ import java.util.StringTokenizer;
 import org.bson.types.ObjectId;
 
 public class ImageAnalyser {
+    private static final Logger logger = LogManager.getLogger(ImageAnalyser.class);
     private static String removeCommentFromFileToolReport(String l) {
         int index = l.indexOf("comment: \"");
         if (index >= 0) {
@@ -202,55 +206,52 @@ public class ImageAnalyser {
         MongoCollection<Document> image,
         Document imageObject,
         FileToolReport fileToolReport,
-        PrintStream out) throws Exception {
-        String _id = ((ObjectId) imageObject.get("_id")).toString();
-        String filename = ImageDownloader.imageFilename(_id, out);
-
-        // Check if file exists
-        File fd = new File(filename);
-        if (!fd.exists()) {
-            return;
+        PrintStream out,
+        AtomicInteger totalImagesProcessed) {
+        int n = totalImagesProcessed.incrementAndGet();
+        if (n % 1000 == 0) {
+            logger.info("Image processed for descriptors: {}", n);
         }
+        try {
+            String _id = ((ObjectId) imageObject.get("_id")).toString();
+            String filename = ImageDownloader.imageFilename(_id, out);
 
-        // Gather file sha checksum
-        String[] command = {"/usr/bin/sha512sum", filename};
-        Runtime rt = Runtime.getRuntime();
-        Process p = rt.exec(command);
-        BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream(), "UTF-8"));
+            // Check if file exists
+            File fd = new File(filename);
+            if (!fd.exists()) {
+                return;
+            }
 
-        String line = br.readLine();
-        StringTokenizer parser = new StringTokenizer(line, " ");
-        String sha = parser.nextToken();
+            // Gather file sha checksum
+            String[] command = {"/usr/bin/sha512sum", filename};
+            Runtime rt = Runtime.getRuntime();
+            Process p = rt.exec(command);
+            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream(), "UTF-8"));
 
-        // Gather image information
-        if (!getImageDataFromFileTool(filename, fileToolReport)) {
-            return;
-        }
+            String line = br.readLine();
+            StringTokenizer parser = new StringTokenizer(line, " ");
+            String sha = parser.nextToken();
 
-        // Assemble analysis results
-        ImageFileAttributes a = ImageFileAttributes.builder()
-            .size(fd.length())
-            .shasum(sha)
-            .dx(fileToolReport.lastX)
-            .dy(fileToolReport.lastY)
-            .build();
+            // Gather image information
+            if (!getImageDataFromFileTool(filename, fileToolReport)) {
+                return;
+            }
 
-        // Update info in database
-        Document filter = new Document().append("_id", imageObject.get("_id"));
-        Document newDocument = new Document().append("a", a);
-        Document query = new Document("$set", newDocument);
-        image.updateOne(filter, query);
+            // Assemble analysis results
+            ImageFileAttributes a = ImageFileAttributes.builder()
+                    .size(fd.length())
+                    .shasum(sha)
+                    .dx(fileToolReport.lastX)
+                    .dy(fileToolReport.lastY)
+                    .build();
 
-        // Advance feedback
-        if (fileToolReport.successCount % 100 == 1) {
-            out.print("Image analysis (" + (fileToolReport.successCount - 1) + "):");
-        }
-        if (fileToolReport.successCount % 10 == 1) {
-            out.print(" ");
-        }
-        out.print(".");
-        if (fileToolReport.successCount % 100 == 0) {
-            out.print("\n");
+            // Update info in database
+            Document filter = new Document().append("_id", imageObject.get("_id"));
+            Document newDocument = new Document().append("a", a);
+            Document query = new Document("$set", newDocument);
+            image.updateOne(filter, query);
+        } catch (Exception e) {
+            logger.error(e);
         }
     }
 }
