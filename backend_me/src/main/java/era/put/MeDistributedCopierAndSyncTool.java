@@ -1,6 +1,7 @@
 package era.put;
 
 import era.put.base.Util;
+import era.put.distributed.AsyncRemoteRunner;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -39,29 +40,35 @@ public class MeDistributedCopierAndSyncTool {
         }
     }
 
-    private static void runRemote(String command, int expectedReturnCode) throws Exception {
+    private static void runOsCommand(String command) throws Exception {
         logger.info(command);
         Process process = Runtime.getRuntime().exec(command);
         process.waitFor();
 
-        InputStream ios = process.getInputStream();
-        BufferedReader br = new BufferedReader(new InputStreamReader(ios));
+        InputStream standardOutputStream = process.getInputStream();
+        BufferedReader br = new BufferedReader(new InputStreamReader(standardOutputStream));
         String line;
         while ((line = br.readLine()) != null) {
             logger.info(line);
         }
 
-        InputStream iose = process.getErrorStream();
-        BufferedReader bre = new BufferedReader(new InputStreamReader(iose));
-        while ((line = br.readLine()) != null) {
+        InputStream standardErrorStream = process.getErrorStream();
+        BufferedReader bre = new BufferedReader(new InputStreamReader(standardErrorStream));
+        while ((line = bre.readLine()) != null) {
             logger.error(line);
         }
 
         int value = process.exitValue();
-        if (value != expectedReturnCode) {
+        if (value != 0) {
             logger.error("Status returned by command: {}", value);
             throw new RuntimeException("Can not execute [" + command + "] - review ssh permissions / authorized_keys on agent host");
         }
+    }
+
+    private static Thread runAsyncCommand(String command, int id) throws Exception {
+        logger.info(command);
+        AsyncRemoteRunner runner = new AsyncRemoteRunner(command, id);
+        return new Thread(runner);
     }
 
     private static String getUserFolder(int i) {
@@ -70,19 +77,16 @@ public class MeDistributedCopierAndSyncTool {
             numberOfParameters++;
         }
         String userFolder;
-        switch (numberOfParameters) {
-            case 1:
-                userFolder = String.format("/home/" + USER_PATTERN, i);
-                break;
-            default:
-                userFolder = String.format("/home/" + USER_PATTERN);
-                break;
+        if (numberOfParameters == 1) {
+            userFolder = String.format("/home/" + USER_PATTERN, i);
+        } else {
+            userFolder = String.format("/home/" + USER_PATTERN);
         }
         return userFolder;
     }
 
     private static String getSshConnectionString(int i) {
-        StringBuffer sshConnection = new StringBuffer();
+        StringBuilder sshConnection = new StringBuilder();
         int numberOfParameters = 0;
         if (USER_PATTERN.contains("%")) {
             numberOfParameters++;
@@ -127,22 +131,22 @@ public class MeDistributedCopierAndSyncTool {
         String tarFilename = "/tmp/stalker_tmp.tar.bz2";
         deleteTemporaryFile(tarFilename);
         command = "tar cfj " + tarFilename + " -C " + projectPath + "/../ stalker";
-        runRemote(command, 0);
+        runOsCommand(command);
 
         // 2. Copy compressed file to all hosts
         for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
             String sshConnection = getSshConnectionString(i);
             logger.info("----- Copying project to host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
             command = "ssh " + sshConnection + " mkdir -p " + REMOTE_SSH_INSTALL_PATH;
-            runRemote(command, 0);
+            runOsCommand(command);
             command = "ssh " + sshConnection + " rm -rf " + REMOTE_SSH_INSTALL_PATH + "/stalker";
-            runRemote(command, 0);
+            runOsCommand(command);
             command = "scp " + tarFilename + " " + sshConnection + ":" + REMOTE_SSH_INSTALL_PATH;
-            runRemote(command, 0);
+            runOsCommand(command);
             command = "ssh " + sshConnection + " tar xfj $HOME/" + REMOTE_SSH_INSTALL_PATH + "/stalker_tmp.tar.bz2 -C $HOME/" + REMOTE_SSH_INSTALL_PATH;
-            runRemote(command, 0);
+            runOsCommand(command);
             command = "ssh " + sshConnection + " rm -f $HOME/" + REMOTE_SSH_INSTALL_PATH + "/stalker_tmp.tar.bz2";
-            runRemote(command, 0);
+            runOsCommand(command);
         }
 
         // 3. Clean up
@@ -163,10 +167,12 @@ public class MeDistributedCopierAndSyncTool {
 
             createCustomAgentPropertiesFile(propertiesFilename, userFolder, i);
             String command = "scp /tmp/application.properties " + sshConnection + ":" + REMOTE_SSH_INSTALL_PATH + "/stalker/backend_me/src/main/resources/application.properties";
-            runRemote(command, 0);
+            runOsCommand(command);
         }
         File toDelete = new File("/tmp/application.properties");
-        toDelete.delete();
+        if (!toDelete.delete()) {
+            logger.error("Can not delete /tmp/application.properties file");
+        }
     }
 
     private static void createCustomAgentPropertiesFile(String localSource, String userFolder, int i) throws IOException {
@@ -193,10 +199,56 @@ public class MeDistributedCopierAndSyncTool {
         br.close();
     }
 
+    private static void startX11Sessions() throws Exception {
+        Thread[] threads = new Thread[3 * NUMBER_OF_DISTRIBUTED_AGENTS];
+        int t = 0;
+        int dx = 0;
+        int dy = 0;
+        int incx = (3840 - 1920) / (NUMBER_OF_DISTRIBUTED_AGENTS - 1);
+        int incy = (2160 - 1080) / (NUMBER_OF_DISTRIBUTED_AGENTS - 1);
+
+        for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
+            logger.info("----- Starting X11 server for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
+            String sshConnection = getSshConnectionString(i);
+            String command = "ssh -Y " + sshConnection + " Xnest :" + (100 + i) + " -geometry 1920x1080+" + dx + "+" + dy + " -name " + sshConnection;
+            threads[t] = runAsyncCommand(command, i);
+            threads[t].start();
+            t++;
+            dx += incx;
+            dy += incy;
+        }
+
+        Thread.sleep(2000);
+
+        for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
+            logger.info("----- Starting mwm for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
+            String sshConnection = getSshConnectionString(i);
+            String command = "ssh " + sshConnection + " mwm -display :" + (100 + i);
+            threads[t] = runAsyncCommand(command, i);
+            threads[t].start();
+            t++;
+        }
+
+        for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
+            logger.info("----- Starting mwm for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
+            String sshConnection = getSshConnectionString(i);
+            String projectFolder = getUserFolder(i) + "/usr/paradigmas/stalker/backend_me";
+            String command = "ssh " + sshConnection + " uxterm -ls -sb -fn 10x20 -display :" + (100 + i) + " -e " + projectFolder + "/gradlew -p " + projectFolder + " run";
+            //String command = "ssh " + sshConnection + " uxterm -ls -sb -fn 10x20 -display :" + (100 + i) + " -e chrome";
+            threads[t] = runAsyncCommand(command, i);
+            threads[t].start();
+            t++;
+        }
+
+        for (int i = 0; i < 3 * NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
+            threads[i].join();
+        }
+    }
     public static void main(String[] args) {
         try {
             copyProjectToDistributedAgents();
             syncApplicationPropertiesWithDistributedAgents();
+            startX11Sessions();
         } catch (Exception e) {
             logger.error(e);
         }

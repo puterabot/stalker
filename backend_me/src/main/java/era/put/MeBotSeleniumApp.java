@@ -179,11 +179,11 @@ public class MeBotSeleniumApp {
 
             // 1. Download new post urls from list pages and store them by id on post database collection
             processPostListings(c);
-            processNotDownloadedPosts(c);
+            //processNotDownloadedPosts(c);
 
             // 2. Download known profiles in depth
-            processProfileInDepthSearch(c); // from known profiles, get more posts
-            processNotDownloadedPosts(c); // process new posts to enrich existing profiles
+            //processProfileInDepthSearch(c); // from known profiles, get more posts
+            //processNotDownloadedPosts(c); // process new posts to enrich existing profiles
 
             // 8. Close
             Date endDate = new Date();
