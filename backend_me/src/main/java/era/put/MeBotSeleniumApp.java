@@ -40,7 +40,7 @@ public class MeBotSeleniumApp {
 
     public static final List<WebDriver> currentDrivers = new ArrayList<>();
 
-    private static void processNotDownloadedProfiles(Configuration c) throws InterruptedException {
+    private static void processNotDownloadedPosts(Configuration c) throws InterruptedException {
         MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
         if (mongoConnection == null) {
             return;
@@ -150,20 +150,22 @@ public class MeBotSeleniumApp {
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
         root.setLevel(Level.OFF);
 
-        System.out.println("Application started, timestamp: " + new Date());
+        Date startDate = new Date();
+        logger.info("Application started, timestamp: {}", startDate);
         Configuration c = new ConfigurationColombia();
 
         // 1. Download new post urls from list pages and store them by id on post database collection
         processPostListings(c);
-
-        // 2. Download known profiles in depth
-        processProfileInDepthSearch(c);
-
-        // 3. Download new profiles detail
         processNotDownloadedProfiles(c);
 
+        // 2. Download known profiles in depth
+        processProfileInDepthSearch(c); // from known profiles, get more posts
+        processNotDownloadedProfiles(c); // process new posts to enrich existing profiles
+
         // 8. Close
-        System.out.println("Program ended, timestamp: " + new Date());
+        Date endDate = new Date();
+        logger.info("Program ended, timestamp: {}", endDate);
+        Util.reportDeltaTime(startDate, endDate);
     }
 
     public static void main(String[] args) {
