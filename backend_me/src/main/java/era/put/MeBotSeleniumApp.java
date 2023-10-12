@@ -3,9 +3,11 @@ package era.put;
 // Java
 import era.put.base.MongoUtil;
 import era.put.base.SeleniumUtil;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 // Mongo
@@ -39,6 +41,29 @@ public class MeBotSeleniumApp {
     private static final int NUMBER_OF_PROFILE_THREADS = 1; // 24;
 
     public static final List<WebDriver> currentDrivers = new ArrayList<>();
+    private static boolean RUN_FOREVER;
+    private static int POST_LIST_NUMBER_OF_PROCESSES;
+    private static int POST_LIST_PROCESS_ID;
+
+    static {
+        try {
+            ClassLoader classLoader = Util.class.getClassLoader();
+            InputStream input = classLoader.getResourceAsStream("application.properties");
+            if (input == null) {
+                throw new Exception("application.properties not found on classpath");
+            }
+            Properties properties = new Properties();
+            properties.load(input);
+            RUN_FOREVER = Boolean.parseBoolean(properties.getProperty("web.crawler.forever.and.beyond"));
+            POST_LIST_NUMBER_OF_PROCESSES = Integer.parseInt(properties.getProperty("web.crawler.post.listing.downloader.total.processes"));
+            POST_LIST_PROCESS_ID = Integer.parseInt(properties.getProperty("web.crawler.post.listing.downloader.process.id"));
+        } catch (Exception e) {
+            logger.warn(e);
+            RUN_FOREVER = false;
+            POST_LIST_NUMBER_OF_PROCESSES = 1;
+            POST_LIST_PROCESS_ID = 0;
+        }
+    }
 
     private static void processNotDownloadedPosts(Configuration c) throws InterruptedException {
         MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
@@ -68,10 +93,6 @@ public class MeBotSeleniumApp {
         System.out.println("New profiles downloaded, timestamp: " + new Date());
     }
 
-    /**
-     * @param c
-     * @throws InterruptedException
-     */
     private static void processProfileInDepthSearch(Configuration c)
             throws InterruptedException {
         MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
@@ -105,12 +126,12 @@ public class MeBotSeleniumApp {
      * - Collection post in database is empty or containing only old posts.
      * Situation after:
      * - New posts are added to post collection, with p (processed) flag undefined, for further
-     *   information to be download later.
+     *   information to be downloaded later.
      */
     private static void processPostListings(Configuration c) throws InterruptedException {
         List<Thread> threads;// 1. List profiles
         ConcurrentLinkedQueue<PostComputeElement> availableListComputeElements;
-        availableListComputeElements = ParallelWorksetBuilders.buildListingComputeSet(new ConfigurationColombia());
+        availableListComputeElements = ParallelWorksetBuilders.buildListingComputeSet(new ConfigurationColombia(), POST_LIST_NUMBER_OF_PROCESSES, POST_LIST_PROCESS_ID);
 
         // Create and launch listing threads
         threads = new ArrayList<>();
@@ -149,23 +170,26 @@ public class MeBotSeleniumApp {
         // 0. Global init
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
         root.setLevel(Level.OFF);
+        boolean ended = !RUN_FOREVER;
 
-        Date startDate = new Date();
-        logger.info("Application started, timestamp: {}", startDate);
-        Configuration c = new ConfigurationColombia();
+        do {
+            Date startDate = new Date();
+            logger.info("Application started, timestamp: {}", startDate);
+            Configuration c = new ConfigurationColombia();
 
-        // 1. Download new post urls from list pages and store them by id on post database collection
-        processPostListings(c);
-        processNotDownloadedProfiles(c);
+            // 1. Download new post urls from list pages and store them by id on post database collection
+            processPostListings(c);
+            processNotDownloadedPosts(c);
 
-        // 2. Download known profiles in depth
-        processProfileInDepthSearch(c); // from known profiles, get more posts
-        processNotDownloadedProfiles(c); // process new posts to enrich existing profiles
+            // 2. Download known profiles in depth
+            processProfileInDepthSearch(c); // from known profiles, get more posts
+            processNotDownloadedPosts(c); // process new posts to enrich existing profiles
 
-        // 8. Close
-        Date endDate = new Date();
-        logger.info("Program ended, timestamp: {}", endDate);
-        Util.reportDeltaTime(startDate, endDate);
+            // 8. Close
+            Date endDate = new Date();
+            logger.info("Program ended, timestamp: {}", endDate);
+            Util.reportDeltaTime(startDate, endDate);
+        } while (!ended);
     }
 
     public static void main(String[] args) {

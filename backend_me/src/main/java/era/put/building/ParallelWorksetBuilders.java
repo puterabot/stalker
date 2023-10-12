@@ -12,14 +12,19 @@ import era.put.base.MongoConnection;
 import static com.mongodb.client.model.Filters.exists;
 
 public class ParallelWorksetBuilders {
-    public static ConcurrentLinkedQueue<PostComputeElement> buildListingComputeSet(Configuration c) {
+    public static ConcurrentLinkedQueue<PostComputeElement> buildListingComputeSet(Configuration c, int totalProcesses, int currentProcessId) {
         ConcurrentLinkedQueue<PostComputeElement> availableListComputeElements = new ConcurrentLinkedQueue<>();
+
+        int dataGroupId = 0;
         for (String category: c.getServices()) {
             for (String region: c.getRegions()) {
-                PostComputeElement element = new PostComputeElement();
-                element.service = category;
-                element.region = region;
-                availableListComputeElements.add(element);
+                if (dataGroupId % totalProcesses == currentProcessId) {
+                    PostComputeElement element = new PostComputeElement();
+                    element.service = category;
+                    element.region = region;
+                    availableListComputeElements.add(element);
+                }
+                dataGroupId++;
             }
         }
         return availableListComputeElements;
