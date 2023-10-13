@@ -232,7 +232,7 @@ public class MeDistributedCopierAndSyncTool {
         for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
             logger.info("----- Disabling screen saver for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
             String sshConnection = getSshConnectionString(i);
-            String command = "ssh " + sshConnection + " xset s off -display :" + (100 + i);
+            String command = "ssh " + sshConnection + " xset -display :" + (100 + i) + " s off";
             threads[t] = runAsyncCommand(command, i);
             threads[t].start();
             t++;
@@ -242,7 +242,7 @@ public class MeDistributedCopierAndSyncTool {
             logger.info("----- Starting mwm for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
             String sshConnection = getSshConnectionString(i);
             String projectFolder = getUserFolder(i) + "/usr/paradigmas/stalker/backend_me";
-            String command = "ssh " + sshConnection + " uxterm -ls -sb -fn 10x20 -display :" + (100 + i) + " -e " + projectFolder + "/gradlew -p " + projectFolder + " run";
+            String command = "ssh " + sshConnection + " uxterm -ls -sb -fn 10x20 -display :" + (100 + i) + " -e \"" + projectFolder + "/gradlew -p " + projectFolder + " run &> " + projectFolder + "/report.txt\"";
             //String command = "ssh " + sshConnection + " uxterm -ls -sb -fn 10x20 -display :" + (100 + i) + " -e chrome";
             threads[t] = runAsyncCommand(command, i);
             threads[t].start();
