@@ -3,6 +3,7 @@ package era.put;
 // Java
 import era.put.base.MongoUtil;
 import era.put.base.SeleniumUtil;
+import era.put.mining.ImageDupesDescriptorsProcessor;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
@@ -178,12 +179,15 @@ public class MeBotSeleniumApp {
             Configuration c = new ConfigurationColombia();
 
             // 1. Download new post urls from list pages and store them by id on post database collection
-            processPostListings(c);
+            //processPostListings(c);
             //processNotDownloadedPosts(c);
 
             // 2. Download known profiles in depth
             //processProfileInDepthSearch(c); // from known profiles, get more posts
             //processNotDownloadedPosts(c); // process new posts to enrich existing profiles
+
+            // 3. Update findimagedupes descriptors
+            ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
 
             // 8. Close
             Date endDate = new Date();
