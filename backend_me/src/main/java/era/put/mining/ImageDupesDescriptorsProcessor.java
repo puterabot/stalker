@@ -17,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 public class ImageDupesDescriptorsProcessor {
     private static final Logger logger = LogManager.getLogger(ImageDupesDescriptorsProcessor.class);
     private static String ME_IMAGE_DOWNLOAD_PATH;
-    private static final int NUMBER_OF_DATABASE_IMPORTER_THREADS = 2;
+    private static final int NUMBER_OF_DATABASE_IMPORTER_THREADS = 72;
 
     static {
         try {
@@ -38,7 +38,7 @@ public class ImageDupesDescriptorsProcessor {
         return line.contains("data: ") && !line.contains("metadata: ");
     }
 
-    private static void processRecord(String key, String findImageDupesDescriptor) {
+    private static void processRecord(String key, String findImageDupesDescriptor, AtomicInteger totalDatabasesProcessed) {
         // Find image dupes descriptors are 32 byte arrays, represented as two hexadecimal nibbles.
         if (key == null || !key.startsWith(ME_IMAGE_DOWNLOAD_PATH) || findImageDupesDescriptor.length() != 64) {
             return;
@@ -47,13 +47,15 @@ public class ImageDupesDescriptorsProcessor {
 
         String imageId = imageFilenameRelativePath.substring(3, imageFilenameRelativePath.length() - 4);
 
-        logger.info("key[{}]: {}", imageId, findImageDupesDescriptor);
+        int n = totalDatabasesProcessed.incrementAndGet();
+        if (n % 100000 == 0) {
+            logger.info("Image descriptors imported: {}", n);
+            logger.info("  . key[{}]: {}", imageId, findImageDupesDescriptor);
+        }
     }
     private static void processBerkeleyDatabase(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed) {
         try {
-            int n = totalDatabasesProcessed.incrementAndGet();
-            logger.info("Processing database [{{}}]: [{}]", n, berkeleyDatabaseFilename);
-            String command = "db_dump -d a " + berkeleyDatabaseFilename;
+            String command = "db_dump -d a " + ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes/" + berkeleyDatabaseFilename;
             Process process = Runtime.getRuntime().exec(command);
             InputStream inputStream = process.getInputStream();
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -68,7 +70,7 @@ public class ImageDupesDescriptorsProcessor {
                     if (logicCount % 2 == 0) {
                         nextKey = data;
                     } else {
-                        processRecord(nextKey, data);
+                        processRecord(nextKey, data, totalDatabasesProcessed);
                     }
                     logicCount++;
                 }
@@ -92,11 +94,13 @@ public class ImageDupesDescriptorsProcessor {
         ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_DATABASE_IMPORTER_THREADS, threadFactory);
         AtomicInteger totalDatabasesProcessed = new AtomicInteger(0);
 
-        File[] children = fd.listFiles();
-        for (File berkeleyDatabaseFile: children) {
-            executorService.submit(() ->
-                processBerkeleyDatabase(berkeleyDatabaseFile.getAbsolutePath(), totalDatabasesProcessed)
-            );
+        String[] children = fd.list((dir, name) -> name.contains(".bin"));
+        if (children != null) {
+            for (String berkeleyDatabaseFilename : children) {
+                executorService.submit(() ->
+                        processBerkeleyDatabase(berkeleyDatabaseFilename, totalDatabasesProcessed)
+                );
+            }
         }
 
         executorService.shutdown();

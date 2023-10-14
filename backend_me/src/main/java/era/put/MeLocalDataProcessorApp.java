@@ -11,6 +11,7 @@ import era.put.datafixing.ImageFixes;
 import era.put.interleaving.ImageInterleaver;
 import era.put.interleaving.PostInterleaver;
 import era.put.interleaving.ProfileInfoInterleaver;
+import era.put.mining.ImageDupesDescriptorsProcessor;
 import era.put.mining.ImageInfo;
 import java.io.PrintStream;
 import java.util.Date;
@@ -53,16 +54,14 @@ public class MeLocalDataProcessorApp {
         logger.info("Application started, timestamp: {}", startDate);
 
         // 1. Analise images on disk
-        completeImageDatabaseCollection(c);
+        //completeImageDatabaseCollection(c);
 
         // 2. Execute fixes on posts and profiles
-        completePostAndProfileDatabaseCollections();
+        //completePostAndProfileDatabaseCollections();
 
         // 3. Process intra-profile similarity hints by shasum image descriptors
-        ImageInfo.deleteExternalChildImages();
-
-        // TODO: Compute / update findimagedupes image descriptors
-
+        //ImageInfo.deleteExternalChildImages();
+        ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
 
         // TODO: Compute / update Yolo object detection (including faces and tatoos)
 
@@ -73,9 +72,9 @@ public class MeLocalDataProcessorApp {
         // TODO: Add the similarity hints by face id image descriptors
 
         // 4. Build extended information
-        ImageInterleaver.createP0References(System.out);
-        PostInterleaver.linkPostsToProfiles(System.out);
-        ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
+        //ImageInterleaver.createP0References(System.out);
+        //PostInterleaver.linkPostsToProfiles(System.out);
+        //ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
 
         // Closing application
         Date endDate = new Date();

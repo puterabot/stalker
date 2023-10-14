@@ -2,6 +2,24 @@
 
 This java/gradle project contains several applications for feeding the database from the ME site.
 
+### Dependencies
+
+Note that current program has been developed and tested only on Linux Ubuntu 22.04. It is possible that
+this could work on other systems as such MacOS or Windows, but additional research should be done on
+how to support specific elements on that platforms, particularly an X11 server environment and the
+availability of Chrome browser under that X11 environment.
+
+For other than linux platforms, it is recommended to use a virtual machine with an Ubuntu 22.04 host.
+
+For Linux Ubuntu 22.04, the following software is needed:
+- **Java 17**
+- **Berkeley Database utils**
+
+Recommended command to install needed dependencies:
+```
+sudo apt-get install db-util xnest xvfb
+```
+
 ### Making a configuration file
 
 Create an `./backend_me/src/main/application.properties` file and add the configuration lines with your database

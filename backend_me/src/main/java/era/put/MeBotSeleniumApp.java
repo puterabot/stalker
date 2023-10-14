@@ -186,9 +186,6 @@ public class MeBotSeleniumApp {
             //processProfileInDepthSearch(c); // from known profiles, get more posts
             //processNotDownloadedPosts(c); // process new posts to enrich existing profiles
 
-            // 3. Update findimagedupes descriptors
-            ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
-
             // 8. Close
             Date endDate = new Date();
             logger.info("Program ended, timestamp: {}", endDate);
