@@ -20,6 +20,7 @@ dependencies {
     implementation 'ru.yandex.qatools.ashot:ashot:1.5.4'
     implementation 'ch.qos.logback:logback-classic:1.4.11'
     implementation 'org.jgrapht:jgrapht-core:1.5.2'
+    implementation files('./lib/vsdk.jar')
 }
 
 tasks.withType(JavaCompile) {

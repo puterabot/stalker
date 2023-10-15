@@ -7,6 +7,7 @@ import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
 import era.put.datafixing.Fixes;
+import era.put.datafixing.ImageEmptyBorderRemover;
 import era.put.datafixing.ImageFixes;
 import era.put.interleaving.ImageInterleaver;
 import era.put.interleaving.PostInterleaver;
@@ -59,9 +60,12 @@ public class MeLocalDataProcessorApp {
         // 2. Execute fixes on posts and profiles
         //completePostAndProfileDatabaseCollections();
 
-        // 3. Process intra-profile similarity hints by shasum image descriptors
+        // 3. Modify images with empty borders, so comparisson algorithms works better
+        ImageEmptyBorderRemover.removeEmptyBordersFromImages();
+
+        // 4. Process intra-profile similarity hints by shasum image descriptors
         //ImageInfo.deleteExternalChildImages();
-        ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
+        //ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
 
         // TODO: Compute / update Yolo object detection (including faces and tatoos)
 
@@ -71,7 +75,7 @@ public class MeLocalDataProcessorApp {
 
         // TODO: Add the similarity hints by face id image descriptors
 
-        // 4. Build extended information
+        // 5. Build extended information
         //ImageInterleaver.createP0References(System.out);
         //PostInterleaver.linkPostsToProfiles(System.out);
         //ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
