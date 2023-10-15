@@ -202,7 +202,7 @@ public class ImageAnalyser {
      * @param image
      * @param imageObject
      */
-    public static void processImageFile(
+    public static ImageFileAttributes processImageFile(
         MongoCollection<Document> image,
         Document imageObject,
         FileToolReport fileToolReport,
@@ -219,7 +219,7 @@ public class ImageAnalyser {
             // Check if file exists
             File fd = new File(filename);
             if (!fd.exists()) {
-                return;
+                return null;
             }
 
             // Gather file sha checksum
@@ -234,7 +234,7 @@ public class ImageAnalyser {
 
             // Gather image information
             if (!getImageDataFromFileTool(filename, fileToolReport)) {
-                return;
+                return null;
             }
 
             // Assemble analysis results
@@ -250,8 +250,11 @@ public class ImageAnalyser {
             Document newDocument = new Document().append("a", a);
             Document query = new Document("$set", newDocument);
             image.updateOne(filter, query);
+
+            return a;
         } catch (Exception e) {
             logger.error(e);
         }
+        return null;
     }
 }

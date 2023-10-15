@@ -1,5 +1,6 @@
 package era.put.building;
 
+import com.mongodb.client.FindIterable;
 import era.put.base.MongoUtil;
 import java.io.File;
 import java.util.ArrayList;
@@ -9,6 +10,11 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.MongoCursorNotFoundException;
 import com.mongodb.MongoTimeoutException;
 import com.mongodb.client.MongoCollection;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -21,6 +27,9 @@ import static com.mongodb.client.model.Filters.exists;
 
 public class RepeatedImageDetector {
     private static final Logger logger = LogManager.getLogger(RepeatedImageDetector.class);
+
+    // Database intensive task, it behaves better with low number of threads
+    private static final int NUMBER_OF_IMAGE_REPETITION_DETECTOR_THREADS = 16;
     public static int maxGroupSize = 0;
 
     private static void markAsReferenceAndRemoveFile(Document childImageDocument, Document parentImageDocument, MongoCollection<Document> image) {
@@ -39,7 +48,7 @@ public class RepeatedImageDetector {
         }
     }
 
-    private static void deleteInternalChildImages(MongoCollection<Document> image, Document imagePivotObject) {
+    private static void deleteInternalChildImages(MongoCollection<Document> image, Document imagePivotObject, AtomicInteger totalImagesProcessed) {
         ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(imagePivotObject);
         if (attrPivot == null) {
             return;
@@ -131,8 +140,22 @@ public class RepeatedImageDetector {
     groupImages(MongoCollection<Document> image) {
         try {
             System.out.println("= DETECTING REPEATED IMAGES ==========================================================");
-            for (Document i : image.find(exists("x", false))) {
-                deleteInternalChildImages(image, i);
+            FindIterable<Document> unprocessedImageIterable = image.find(exists("x", false));
+            ThreadFactory threadFactory = Util.buildThreadFactory("InternalImageRepetitionsDetector[%03d]");
+            ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_IMAGE_REPETITION_DETECTOR_THREADS, threadFactory);
+            AtomicInteger totalImagesProcessed = new AtomicInteger(0);
+
+            for (Document i : unprocessedImageIterable) {
+                executorService.submit(() -> deleteInternalChildImages(image, i, totalImagesProcessed));
+            }
+
+            executorService.shutdown();
+            try {
+                if (!executorService.awaitTermination(2, TimeUnit.HOURS)) {
+                    logger.error("Internal image repetition threads taking so long!");
+                }
+            } catch (InterruptedException e) {
+                logger.error(e);
             }
             System.out.println("= DETECTING REPEATED IMAGES PROCESS COMPLETE =========================================");
         } catch (MongoCursorNotFoundException | MongoTimeoutException e) {

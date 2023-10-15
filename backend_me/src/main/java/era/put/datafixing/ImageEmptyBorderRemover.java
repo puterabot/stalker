@@ -6,7 +6,10 @@ import com.mongodb.client.model.Projections;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
+import era.put.building.FileToolReport;
+import era.put.building.ImageAnalyser;
 import era.put.building.ImageDownloader;
+import era.put.building.ImageFileAttributes;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -21,6 +24,7 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 import vsdk.toolkit.common.VSDK;
 import vsdk.toolkit.io.image.ImageNotRecognizedException;
 import vsdk.toolkit.media.RGBImage;
@@ -249,10 +253,14 @@ public class ImageEmptyBorderRemover {
         ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_IMAGE_PROCESSING_THREADS, threadFactory);
         AtomicInteger totalImagesProcessed = new AtomicInteger(0);
         AtomicInteger blackBordersRemoved = new AtomicInteger(0);
+        AtomicInteger updatedDescriptors = new AtomicInteger(0);
 
         parentImageIterable.forEach((Consumer<? super Document>) parentImageObject ->
-            executorService.submit(() ->
-                removeEmptyImageBorder(parentImageObject, totalImagesProcessed, blackBordersRemoved)
+            executorService.submit(() -> {
+                    if (removeEmptyImageBorder(parentImageObject, totalImagesProcessed, blackBordersRemoved)) {
+                        updateChecksums(mongoConnection, parentImageObject, updatedDescriptors);
+                    }
+                }
             ));
 
         executorService.shutdown();
@@ -263,4 +271,26 @@ public class ImageEmptyBorderRemover {
         candidates.close();
     }
 
+    private static void updateChecksums(MongoConnection mongoConnection, Document parentImageObject, AtomicInteger updatedDescriptors) {
+        // Update base descriptors
+        FileToolReport fileToolReport = new FileToolReport();
+
+        //
+        Document query = new Document("x", parentImageObject.get("_id"));
+        FindIterable<Document> childImageIterable = mongoConnection.image.find(query);
+        ImageFileAttributes attributes; // Basic sha and image size descriptors
+        attributes = ImageAnalyser.processImageFile(mongoConnection.image, parentImageObject, fileToolReport, System.out, updatedDescriptors);
+
+        if (attributes == null) {
+            Util.exitProgram(
+                "FATAL: Parent image id [" + parentImageObject.get("_id").toString() +
+                    "] could not be analyzed! Check database SHA consistency!");
+        }
+
+        childImageIterable.forEach((Consumer<? super Document>)childImage -> {
+            Document filter = new Document().append("_id", childImage.get("_id"));
+            Document newDocument = new Document().append("a", attributes);
+            mongoConnection.image.updateOne(filter, new Document("$set", newDocument));
+        });
+    }
 }

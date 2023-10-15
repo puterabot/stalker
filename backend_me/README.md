@@ -12,12 +12,17 @@ availability of Chrome browser under that X11 environment.
 For other than linux platforms, it is recommended to use a virtual machine with an Ubuntu 22.04 host.
 
 For Linux Ubuntu 22.04, the following software is needed:
-- **Java 17**
-- **Berkeley Database utils**
+- **Java 17**: java, javac commands.
+- **Berkeley Database utils**: db-dump command.
+- **coreutils**: sha512sum command, useful to compute descriptors to identify repeated image files.
+- **findimagedupes**: tool use to compute image descriptors, useful to detect global image visual similarities.
+- **Xnest**: use for web scrapper agents to keep separate user sessions and avoid bot detectors.
+- **Xvfb**: headless version of Xnest.
+- **file**: tool to detect image types, useful to extract image size descriptors from jpeg files.
 
 Recommended command to install needed dependencies:
 ```
-sudo apt-get install db-util xnest xvfb
+sudo apt-get install db-util xnest xvfb coreutils findimagedupes
 ```
 
 ### Making a configuration file
@@ -64,4 +69,3 @@ where **mainClass** is one of the following:
 - **MeBotSeleniumApp**: default main class use, main web crawler to get post, profile and image information.
 - **MeLocalDataProcessorApp**:  after having some downloaded posts, profiles and images, executes data cleanup, image processing and other analysis steps, as such face extraction and neural network trainning.
 - **MeDistributedCopierAndSyncTool**: a set of procedures to help on copy, configure and sync system on a set of remote systems for distributed run
-
