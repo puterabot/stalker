@@ -23,7 +23,6 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
-import vsdk.toolkit.common.VSDK;
 import vsdk.toolkit.io.image.ImageNotRecognizedException;
 import vsdk.toolkit.media.RGBImage;
 import vsdk.toolkit.io.image.ImagePersistence;
@@ -33,8 +32,8 @@ public class ImageEmptyBorderRemover {
     private static final Logger logger = LogManager.getLogger(ImageEmptyBorderRemover.class);
     private static final int NUMBER_OF_IMAGE_PROCESSING_THREADS = 72;
 
-    private static BufferedWriter errors;
-    private static BufferedWriter candidates;
+    private static BufferedWriter errors = null;
+    private static BufferedWriter candidates = null;
 
     private static RegionOfInterest replaceImageWithBorderTrimmedVersion(AtomicInteger blackBordersRemoved, RegionOfInterest roi, RGBImage image, String filename, String _id, File originalImageFile, long originalTime) {
         if (roi != null && roi.idBigArea()) {
@@ -84,9 +83,9 @@ public class ImageEmptyBorderRemover {
         return roi;
     }
 
-    private static boolean removeEmptyImageBorder(Document parentImageObject, AtomicInteger totalImagesProcessed, AtomicInteger bordersRemoved, ColorLogic colorLogic, RGBPixel referenceColor) {
+    public static boolean removeEmptyImageBorderOnImageFile(Document parentImageObject, AtomicInteger totalImagesProcessed, AtomicInteger imagesWithBordersRemoved, ColorLogic colorLogic, RGBPixel referenceColor) {
         String _id = parentImageObject.get("_id").toString();
-        String filename = ImageDownloader.imageFilename(_id, System.out);
+        String filename = ImageDownloader.imageFilename(_id, System.err);
         File originalImageFile = new File(filename);
         long originalTime = originalImageFile.lastModified();
         RGBImage image = null;
@@ -111,9 +110,9 @@ public class ImageEmptyBorderRemover {
         }
 
         RegionOfInterest roi = BordersDetector.searchForBorders(image, referenceColor, colorLogic);
-        roi = replaceImageWithBorderTrimmedVersion(bordersRemoved, roi, image, filename, _id, originalImageFile, originalTime);
+        roi = replaceImageWithBorderTrimmedVersion(imagesWithBordersRemoved, roi, image, filename, _id, originalImageFile, originalTime);
 
-        int b = bordersRemoved.get();
+        int b = imagesWithBordersRemoved.get();
         if (n % 10000 == 0) {
             logger.info("Images searched for borders: {} (referenceColor borders: {})", n, b);
             if (image != null) {
@@ -121,6 +120,29 @@ public class ImageEmptyBorderRemover {
             }
         }
         return roi != null;
+    }
+
+    public static boolean removeEmptyImageBorderOnImageFile(Document parentImageObject, ColorLogic colorLogic, RGBPixel referenceColor) {
+        boolean result = false;
+        try {
+            AtomicInteger totalImagesProcessed = new AtomicInteger(0);
+            AtomicInteger bordersRemoved = new AtomicInteger(0);
+
+            if (errors == null) {
+                errors = new BufferedWriter(new FileWriter("/tmp/image_errors.log", true));
+            }
+            if (candidates == null) {
+                candidates = new BufferedWriter(new FileWriter("/tmp/image_candidates.log", true));
+            }
+
+            result = removeEmptyImageBorderOnImageFile(parentImageObject, totalImagesProcessed, bordersRemoved, colorLogic, referenceColor);
+
+            errors.flush();
+            candidates.flush();
+        } catch (Exception e) {
+            logger.error(e);
+        }
+        return result;
     }
 
     public static void removeEmptyBordersFromImages() throws Exception{
@@ -148,20 +170,19 @@ public class ImageEmptyBorderRemover {
 
         RGBPixel black = new RGBPixel();
         black.r = black.g = black.b = 0;
-        RGBPixel white = new RGBPixel();
-        white.r = white.g = white.b = VSDK.unsigned8BitInteger2signedByte(255);
-
+        //RGBPixel white = new RGBPixel();
+        //white.r = white.g = white.b = VSDK.unsigned8BitInteger2signedByte(255);
 
         parentImageIterable.forEach((Consumer<? super Document>) parentImageObject ->
             executorService.submit(() -> {
-                    if (removeEmptyImageBorder(parentImageObject, totalImagesProcessed, bordersRemoved, ColorLogic.BLACK_LOGIC, black)) {
+                    if (removeEmptyImageBorderOnImageFile(parentImageObject, totalImagesProcessed, bordersRemoved, ColorLogic.BLACK_LOGIC, black)) {
                         ImageFixes.updateImageShaAndSizeDescriptorsFromFile(mongoConnection, parentImageObject, updatedDescriptors);
                     }
 
                     // TODO: This is not working...
-//                    if (removeEmptyImageBorder(parentImageObject, totalImagesProcessed, bordersRemoved, ColorLogic.WHITE_LOGIC, white)) {
-//                        updateChecksums(mongoConnection, parentImageObject, updatedDescriptors);
-//                    }
+                    //if (removeEmptyImageBorder(parentImageObject, totalImagesProcessed, bordersRemoved, ColorLogic.WHITE_LOGIC, white)) {
+                    //    ImageFixes.updateImageShaAndSizeDescriptorsFromFile(mongoConnection, parentImageObject, updatedDescriptors);
+                    //}
                 }
             ));
 

@@ -465,7 +465,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
                             ObjectId userIdFromDatabase = (ObjectId) imageObject.get("u");
                             if(userIdFromDatabase != null && userIdFromDatabase.toString().compareTo(profileObject.get("_id").toString()) != 0) {
                                 out.println("ERROR: Image " + img + " cannot be associated to two different user profiles!");
-                                out.println("  - Original user: " + userIdFromDatabase.toString());
+                                out.println("  - Original user: " + userIdFromDatabase);
                                 out.println("  - Incoming user: " + profileObject.get("_id").toString());
                                 d.quit();
                                 endThread(108);

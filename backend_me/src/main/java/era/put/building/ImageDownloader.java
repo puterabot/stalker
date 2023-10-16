@@ -2,6 +2,8 @@ package era.put.building;
 
 import com.mongodb.client.MongoCollection;
 import era.put.base.Util;
+import era.put.datafixing.ColorLogic;
+import era.put.datafixing.ImageEmptyBorderRemover;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -11,7 +13,9 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.URL;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.bson.Document;
+import vsdk.toolkit.media.RGBPixel;
 
 public class ImageDownloader {
     private static String ME_IMAGE_DOWNLOAD_PATH;
@@ -98,6 +102,14 @@ public class ImageDownloader {
             status = true;
         } else {
             status = downloadImageFromNet(imageFile, url, out);
+
+            if (status) {
+                RGBPixel black = new RGBPixel();
+                black.r = black.g = black.b = 0;
+                AtomicInteger totalImagesProcessed = new AtomicInteger(0);
+                AtomicInteger bordersRemoved = new AtomicInteger(0);
+                ImageEmptyBorderRemover.removeEmptyImageBorderOnImageFile(imageObject, totalImagesProcessed, bordersRemoved, ColorLogic.BLACK_LOGIC, black);
+            }
         }
 
         Document filter = new Document().append("_id", imageObject.get("_id"));
