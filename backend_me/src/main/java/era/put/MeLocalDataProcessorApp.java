@@ -55,16 +55,16 @@ public class MeLocalDataProcessorApp {
         logger.info("Application started, timestamp: {}", startDate);
 
         // 1. Analise images on disk
-        completeImageDatabaseCollection(c);
+        //completeImageDatabaseCollection(c);
 
         // 2. Execute fixes on posts and profiles
-        completePostAndProfileDatabaseCollections();
+        //completePostAndProfileDatabaseCollections();
 
-        // 3. Modify images with empty borders, so comparisson algorithms works better
-        //ImageEmptyBorderRemover.removeEmptyBordersFromImages();
+        // 3. Modify images with empty borders, so comparison algorithms works better
+        ImageEmptyBorderRemover.removeEmptyBordersFromImages();
 
-        // 4. Process intra-profile similarity hints by shasum image descriptors
-        ImageInfo.deleteExternalChildImages();
+        // 4. Process inter-profile similarity hints by shasum image descriptors
+        //ImageInfo.deleteExternalChildImages();
         //ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
 
         // TODO: Compute / update Yolo object detection (including faces and tatoos)
@@ -76,9 +76,9 @@ public class MeLocalDataProcessorApp {
         // TODO: Add the similarity hints by face id image descriptors
 
         // 5. Build extended information
-        ImageInterleaver.createP0References(System.out);
-        PostInterleaver.linkPostsToProfiles(System.out);
-        ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
+        //ImageInterleaver.createP0References(System.out);
+        //PostInterleaver.linkPostsToProfiles(System.out);
+        //ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
 
         // Closing application
         Date endDate = new Date();

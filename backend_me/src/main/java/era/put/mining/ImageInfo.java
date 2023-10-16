@@ -32,7 +32,7 @@ public class ImageInfo {
     private static final int NUMBER_OF_REPORTER_THREADS = 72;
 
     private static void
-    reportProfilesWithCommonImagesForPivot(
+    detectDuplicatedImagesBetweenProfiles(
         MongoCollection<Document> image,
         Document parentImageObject,
         ConcurrentHashMap<String, Set<String>> groups,
@@ -126,7 +126,7 @@ public class ImageInfo {
 
         parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
             executorService.submit(() ->
-                reportProfilesWithCommonImagesForPivot(
+                detectDuplicatedImagesBetweenProfiles(
                     mongoConnection.image, parentImageObject, externalMatches,
                     totalImagesProcessed, externalMatchCounter)
             )
@@ -141,14 +141,14 @@ public class ImageInfo {
             logger.error(e);
         }
 
-        reportGroups(externalMatches, mongoConnection.profileInfo);
+        deleteProfileExternalRepeatedImages(externalMatches, mongoConnection.profileInfo);
 
         logger.info("Total parent images processed: {}", totalImagesProcessed.get());
         logger.info("External matches skipped: {}", externalMatchCounter.get());
         logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
     }
 
-    private static void reportGroups(ConcurrentHashMap<String, Set<String>> externalMatches, MongoCollection<Document> profileInfo) {
+    private static void deleteProfileExternalRepeatedImages(ConcurrentHashMap<String, Set<String>> externalMatches, MongoCollection<Document> profileInfo) {
         logger.info("--------------------------------------------------------------------------------------");
         logger.info("Detected image hint sets: {}", externalMatches.size());
         int min = Integer.MAX_VALUE;
