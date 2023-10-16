@@ -7,7 +7,12 @@ import com.mongodb.client.model.Projections;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
+import era.put.building.ImageAnalyser;
+import era.put.building.ImageDownloader;
 import era.put.building.ImageFileAttributes;
+import java.io.File;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -18,14 +23,11 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import javax.print.Doc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
-import org.jgrapht.Graph;
-import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.SimpleGraph;
-import org.jgrapht.alg.connectivity.ConnectivityInspector;
 
 public class ImageInfo {
     private static final Logger logger = LogManager.getLogger(ImageInfo.class);
@@ -35,12 +37,12 @@ public class ImageInfo {
     detectDuplicatedImagesBetweenProfiles(
         MongoCollection<Document> image,
         Document parentImageObject,
-        ConcurrentHashMap<String, Set<String>> groups,
+        ConcurrentHashMap<String, TreeSet<String>> groups,
         AtomicInteger totalImagesProcessed,
         AtomicInteger externalMatchCounter) {
         int n = totalImagesProcessed.incrementAndGet();
         if (n % 100000 == 0) {
-            logger.info("Images processed for internal profile repetitions ({})", n);
+            logger.info("Images processed for external profile repetitions ({})", n);
         }
 
         ImageFileAttributes attrPivot = MongoUtil.getImageAttributes(parentImageObject);
@@ -54,151 +56,132 @@ public class ImageInfo {
         String imageIdPivot = ((ObjectId)parentImageObject.get("_id")).toString();
 
         // Build candidate set
-        Document filter = new Document()
+        Document filter = new Document("x", true)
             .append("_id", new BasicDBObject("$ne", parentImageObject.get("_id")))
-            .append("a.shasum", attrPivot.getShasum())
-            .append("x", true);
+            .append("a.shasum", attrPivot.getShasum());
         FindIterable<Document> imageIterable = image.find(filter)
             .projection(Projections.include("_id", "a", "u", "md"))
             .sort(new BasicDBObject("md", 1));
 
-        for (Document i: imageIterable) {
-            // 1. Not comparing with itself
-            String imageIdI = ((ObjectId) i.get("_id")).toString();
-            if (imageIdPivot.equals(imageIdI)) {
-                continue;
-            }
+        String basicDescriptor = attrPivot.getShasum() + "_" + attrPivot.getSize() + "_" + attrPivot.getDx() + "_" + attrPivot.getDy();
+        TreeSet<String> group = groups.get(basicDescriptor);
+        if (group == null) {
+            group = new TreeSet<>();
+            group.add(parentImageObject.get("_id").toString());
+            groups.put(basicDescriptor, group);
+            group = groups.get(imageIdPivot);
+        }
 
-            // 2. Extract pair [imagePivotObject, i]
-            ImageFileAttributes attrI = MongoUtil.getImageAttributes(i);
-            ObjectId profileIdI = MongoUtil.getImageParentProfileId(i);
+        for (Document currentImage: imageIterable) {
+            // 1. Validate query assumptions
+            ImageFileAttributes attrI = MongoUtil.getImageAttributes(currentImage);
+            ObjectId profileIdI = MongoUtil.getImageParentProfileId(currentImage);
             if (attrI == null || profileIdI == null) {
                 continue;
             }
 
-            // 3. Compare by attributes
             if (attrPivot.compareTo(attrI) != 0) {
                 continue;
             }
 
-            // 4. Compare by parent profile
+            // 2. Add image to common descriptor group
             if (profileIdPivot.compareTo(profileIdI) != 0) {
                 externalMatchCounter.incrementAndGet();
-                Set<String> group = groups.get(imageIdPivot);
-                if (group == null) {
-                    group = new TreeSet<>();
-                    group.add(profileIdPivot.toString());
-                    groups.put(imageIdPivot, group);
-                    group = groups.get(imageIdPivot);
-                }
-                group.add(profileIdI.toString());
+                group.add(currentImage.get("_id").toString());
             }
         }
     }
 
-    private static void deleteProfileExternalRepeatedImages(ConcurrentHashMap<String, Set<String>> externalMatches, MongoCollection<Document> profileInfo) {
-        logger.info("--------------------------------------------------------------------------------------");
-        logger.info("Detected image hint sets: {}", externalMatches.size());
-        int min = Integer.MAX_VALUE;
-        int max = 0;
-        for (String imageId: externalMatches.keySet()) {
-            Set<String> profileHints = externalMatches.get(imageId);
-            int n = profileHints.size();
-            if (n > max) {
-                max = n;
-            }
-            if (n < min) {
-                min = n;
+    private static void deleteRepeatedExternalImages(ConcurrentHashMap<String, TreeSet<String>> commonImageGroups, MongoCollection<Document> imageCollection) {
+        reportGroupsHistogram(commonImageGroups);
+
+        // Removal algorithm by set
+        for (String descriptor : commonImageGroups.keySet()) {
+            Set<String> imageSetWithCommonDescriptor = commonImageGroups.get(descriptor);
+            if (imageSetWithCommonDescriptor.size() <= 1) {
+                continue;
             }
 
-            /*
-            if (n == 18) {
-                logger.info("Group:");
-                for (String profileId: profileHints) {
-                    Document filter = new Document("_id", new ObjectId(profileId));
-                    FindIterable<Document> profileIterable = profileInfo.find(filter)
-                            .projection(Projections.include("p", "firstPostDate", "lastPostDate", "numPosts", "numImages", "lastLocation", "lastService"))
-                            .sort(new BasicDBObject("p", 1));
-                    profileIterable.forEach((Consumer<? super Document>)p -> {
-                        logger.info("phone: {}", p.get("p"));
-                        logger.info("  . firstPostDate: {}", p.get("firstPostDate"));
-                        logger.info("  . lastPostDate: {}", p.get("lastPostDate"));
-                        logger.info("  . numPosts: {}", p.get("numPosts"));
-                        logger.info("  . numImages: {}", p.get("numImages"));
-                        logger.info("  . lastLocation: {}", p.get("lastLocation"));
-                        logger.info("  . lastService: {}", p.get("lastService"));
-                    });
+            String olderImage = null;
+            Date olderDate = null;
+            HashMap<String, Document> imagesToRemove = new HashMap<>();
+            for (String imageId: imageSetWithCommonDescriptor) {
+                FindIterable<Document> imageIterable = imageCollection.find(new Document("_id", new ObjectId(imageId)));
+
+                try {
+                    if (imageIterable.cursor().hasNext()) {
+                        Document imageDocument = imageIterable.cursor().next();
+                        imagesToRemove.put(imageId, imageDocument);
+                        Date currentImageDate = (Date) imageDocument.get("md");
+                        if (olderImage == null ||
+                                currentImageDate.before(currentImageDate)) {
+                            olderImage = imageId;
+                            olderDate = currentImageDate;
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.error(e);
                 }
             }
-            */
-        }
-        logger.info("Minimum image hint set size (images with less usages are re-used this times): {}", min);
-        logger.info("Maximum image hint set size (images with most usages are re-used this times): {}", max);
 
-        Set<String> totalProfiles = new TreeSet<>();
-        for (Set<String> subgroups: externalMatches.values()) {
-            totalProfiles.addAll(subgroups);
-        }
-
-        logger.info("Profiles with repeated image relationship hints: {}", totalProfiles.size());
-
-        logger.info("--------------------------------------------------------------------------------------");
-        Graph<String, DefaultEdge> graph = new SimpleGraph<>(DefaultEdge.class);
-        for (String node: totalProfiles) {
-            graph.addVertex(node);
-        }
-
-        for (String imageId: externalMatches.keySet()) {
-            Set<String> profileHints = externalMatches.get(imageId);
-            List<String> profileHintsList = profileHints.stream().toList();
-            for (int i = 1; i < profileHintsList.size(); i++) {
-                String currentProfile = profileHintsList.get(i);
-                graph.addEdge(profileHintsList.get(0), currentProfile);
-            }
-        }
-
-        ConnectivityInspector<String, DefaultEdge> inspector = new ConnectivityInspector<>(graph);
-        List<Set<String>> connectedComponents = inspector.connectedSets();
-
-        min = Integer.MAX_VALUE;
-        max = 0;
-        int pairsCount = 0;
-        for (Set<String> group: connectedComponents) {
-            int n = group.size();
-            if (n > max) {
-                max = n;
-            }
-            if (n < min) {
-                min = n;
-            }
-            if (n == 2) {
-                pairsCount++;
-            }
-            if (n > 100) {
-                StringBuilder msg = new StringBuilder();
-                logger.info("Group of {} profiles:", n);
-                for (String profileId: group) {
-                    FindIterable<Document> profileIterable = profileInfo.find(new Document("_id", new ObjectId(profileId)));
-                    for (Document p: profileIterable) {
-                        msg.append(p.get("p").toString());
-                        msg.append(",");
+            for (String id: imagesToRemove.keySet()) {
+                if (id != olderImage) {
+                    Document filter = new Document("_id", new ObjectId(id));
+                    Document newDocument = new Document("x", new ObjectId(olderImage));
+                    Document query = new Document().append("$set", newDocument);
+                    imageCollection.updateOne(filter, query);
+                    String filename = ImageDownloader.imageFilename(id, System.err);
+                    File fd = new File(filename);
+                    if (!fd.delete()) {
+                        logger.error("Can not delete file {}", filename);
                     }
                 }
-                logger.info(msg.toString());
             }
         }
-        logger.info("Profile groups found: {}", connectedComponents.size());
-        logger.info("Pairs (2-sized groups) found: {}", pairsCount);
-        logger.info("Minimum profile group size: {}", min);
-        logger.info("Maximum profile group size: {}", max);
+    }
 
-        logger.info("--------------------------------------------------------------------------------------");
+    private static void reportGroupsHistogram(ConcurrentHashMap<String, TreeSet<String>> commonImageGroups) {
+        logger.info("Image sets with common basic descriptors: {}", commonImageGroups.size());
+        int min = Integer.MAX_VALUE;
+        int max = 0;
+        for (String descriptor : commonImageGroups.keySet()) {
+            Set<String> imageSetWithCommonDescriptor = commonImageGroups.get(descriptor);
+            int n = imageSetWithCommonDescriptor.size();
+            if (n == 1) {
+                continue;
+            }
+            if (n > max) {
+                max = n;
+            }
+            if (n < min) {
+                min = n;
+            }
+        }
+        logger.info("Minimum image set size (images with less usages are re-used this times): {}", min);
+        logger.info("Maximum image set size (images with most usages are re-used this times): {}", max);
+
+        // Report distribution by sizes
+        int[] histogram = new int[max + 1];
+        for (int i = 0; i <= max; i++) {
+            histogram[i] = 0;
+        }
+
+        for (String descriptor : commonImageGroups.keySet()) {
+            TreeSet<String> imageIdSetWithCommonDescriptor = commonImageGroups.get(descriptor);
+            int n = imageIdSetWithCommonDescriptor.size();
+            histogram[n]++;
+        }
+
+        for (int i = 0; i <= max; i++) {
+            if (histogram[i] != 0) {
+                logger.info("Sets with [{}] instances: {}", i, histogram[i]);
+            }
+        }
     }
 
     /**
-     * Report profiles with common images (i.e. the same people using several
+     * Detects profiles with common images (i.e. the same people using several
      * different phone numbers).
-     * Test disabled: previous results are empty.
      */
     public static void
     deleteExternalChildImages() {
@@ -220,15 +203,15 @@ public class ImageInfo {
         ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_REPORTER_THREADS, threadFactory);
         AtomicInteger totalImagesProcessed = new AtomicInteger(0);
         AtomicInteger externalMatchCounter = new AtomicInteger(0);
-        ConcurrentHashMap<String, Set<String>> externalMatches; // imageId vs set of profileId :)
+        ConcurrentHashMap<String, TreeSet<String>> externalMatches; // imageId vs set of profileId :)
         externalMatches = new ConcurrentHashMap<>();
 
         parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
-                executorService.submit(() ->
-                        detectDuplicatedImagesBetweenProfiles(
-                                mongoConnection.image, parentImageObject, externalMatches,
-                                totalImagesProcessed, externalMatchCounter)
-                )
+            executorService.submit(() ->
+                detectDuplicatedImagesBetweenProfiles(
+                    mongoConnection.image, parentImageObject, externalMatches,
+                    totalImagesProcessed, externalMatchCounter)
+            )
         );
 
         executorService.shutdown();
@@ -240,11 +223,11 @@ public class ImageInfo {
             logger.error(e);
         }
 
-        deleteProfileExternalRepeatedImages(externalMatches, mongoConnection.profileInfo);
-
         logger.info("Total parent images processed: {}", totalImagesProcessed.get());
         logger.info("External matches skipped: {}", externalMatchCounter.get());
-        logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
+        logger.info("= DETECTION OF REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
+
+        deleteRepeatedExternalImages(externalMatches, mongoConnection.image);
     }
 
     /*
