@@ -96,58 +96,6 @@ public class ImageInfo {
         }
     }
 
-    /**
-     * Report profiles with common images (i.e. the same people using several
-     * different phone numbers).
-     * Test disabled: previous results are empty.
-     */
-    public static void
-    deleteExternalChildImages() {
-        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
-        if (mongoConnection == null) {
-            return;
-        }
-
-        logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES ==========================================");
-        Document filter = new Document("md", new BasicDBObject("$exists", true))
-                .append("x", true)
-                .append("a", new BasicDBObject("$exists", true))
-                .append("u", new BasicDBObject("$exists", true));
-        FindIterable<Document> parentImageIterable = mongoConnection.image.find(filter)
-            .projection(Projections.include("_id", "a", "u", "md"))
-            .sort(new BasicDBObject("md", 1));
-
-        ThreadFactory threadFactory = Util.buildThreadFactory("ParentImagesShaComparator[%03d]");
-        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_REPORTER_THREADS, threadFactory);
-        AtomicInteger totalImagesProcessed = new AtomicInteger(0);
-        AtomicInteger externalMatchCounter = new AtomicInteger(0);
-        ConcurrentHashMap<String, Set<String>> externalMatches; // imageId vs set of profileId :)
-        externalMatches = new ConcurrentHashMap<>();
-
-        parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
-            executorService.submit(() ->
-                detectDuplicatedImagesBetweenProfiles(
-                    mongoConnection.image, parentImageObject, externalMatches,
-                    totalImagesProcessed, externalMatchCounter)
-            )
-        );
-
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
-                logger.error("Parent image comparator threads taking so long!");
-            }
-        } catch (InterruptedException e) {
-            logger.error(e);
-        }
-
-        deleteProfileExternalRepeatedImages(externalMatches, mongoConnection.profileInfo);
-
-        logger.info("Total parent images processed: {}", totalImagesProcessed.get());
-        logger.info("External matches skipped: {}", externalMatchCounter.get());
-        logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
-    }
-
     private static void deleteProfileExternalRepeatedImages(ConcurrentHashMap<String, Set<String>> externalMatches, MongoCollection<Document> profileInfo) {
         logger.info("--------------------------------------------------------------------------------------");
         logger.info("Detected image hint sets: {}", externalMatches.size());
@@ -245,6 +193,58 @@ public class ImageInfo {
         logger.info("Maximum profile group size: {}", max);
 
         logger.info("--------------------------------------------------------------------------------------");
+    }
+
+    /**
+     * Report profiles with common images (i.e. the same people using several
+     * different phone numbers).
+     * Test disabled: previous results are empty.
+     */
+    public static void
+    deleteExternalChildImages() {
+        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
+        if (mongoConnection == null) {
+            return;
+        }
+
+        logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES ==========================================");
+        Document filter = new Document("md", new BasicDBObject("$exists", true))
+                .append("x", true)
+                .append("a", new BasicDBObject("$exists", true))
+                .append("u", new BasicDBObject("$exists", true));
+        FindIterable<Document> parentImageIterable = mongoConnection.image.find(filter)
+                .projection(Projections.include("_id", "a", "u", "md"))
+                .sort(new BasicDBObject("md", 1));
+
+        ThreadFactory threadFactory = Util.buildThreadFactory("ParentImagesShaComparator[%03d]");
+        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_REPORTER_THREADS, threadFactory);
+        AtomicInteger totalImagesProcessed = new AtomicInteger(0);
+        AtomicInteger externalMatchCounter = new AtomicInteger(0);
+        ConcurrentHashMap<String, Set<String>> externalMatches; // imageId vs set of profileId :)
+        externalMatches = new ConcurrentHashMap<>();
+
+        parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
+                executorService.submit(() ->
+                        detectDuplicatedImagesBetweenProfiles(
+                                mongoConnection.image, parentImageObject, externalMatches,
+                                totalImagesProcessed, externalMatchCounter)
+                )
+        );
+
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
+                logger.error("Parent image comparator threads taking so long!");
+            }
+        } catch (InterruptedException e) {
+            logger.error(e);
+        }
+
+        deleteProfileExternalRepeatedImages(externalMatches, mongoConnection.profileInfo);
+
+        logger.info("Total parent images processed: {}", totalImagesProcessed.get());
+        logger.info("External matches skipped: {}", externalMatchCounter.get());
+        logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
     }
 
     /*

@@ -3,9 +3,7 @@ package era.put.datafixing;
 import com.mongodb.BasicDBObject;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Projections;
-import era.put.MeLocalDataProcessorApp;
 import era.put.base.Configuration;
 import era.put.base.MongoConnection;
 import era.put.base.Util;
@@ -15,16 +13,20 @@ import era.put.building.ImageDownloader;
 import era.put.building.ImageFileAttributes;
 import era.put.building.RepeatedImageDetector;
 import java.io.File;
+import java.io.InputStream;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import javax.print.Doc;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
 import org.bson.types.ObjectId;
+import vsdk.toolkit.io.image.ImagePersistence;
 import vsdk.toolkit.media.RGBImage;
 import vsdk.toolkit.media.RGBPixel;
 
@@ -34,6 +36,25 @@ public class ImageFixes {
     private static final Logger logger = LogManager.getLogger(ImageFixes.class);
     private static final int NUMBER_OF_DELETER_THREADS = 72;
     private static final int NUMBER_OF_IMAGE_DESCRIPTOR_ANALYZER_THREADS = 72;
+    private static final int NUMBER_OF_IMAGE_CHECKER_THREADS = 72;
+    private static final int MINIMUM_IMAGE_DIMENSION = 32;
+
+    private static String ME_IMAGE_DOWNLOAD_PATH;
+
+    static {
+        try {
+            ClassLoader classLoader = Util.class.getClassLoader();
+            InputStream input = classLoader.getResourceAsStream("application.properties");
+            if (input == null) {
+                throw new Exception("application.properties not found on classpath");
+            }
+            Properties properties = new Properties();
+            properties.load(input);
+            ME_IMAGE_DOWNLOAD_PATH = properties.getProperty("me.image.download.path");
+        } catch (Exception e) {
+            ME_IMAGE_DOWNLOAD_PATH = "/tmp";
+        }
+    }
 
     /**
     An image is a "child" when its register at the database is not true and contains an ObjectId reference
@@ -167,5 +188,133 @@ public class ImageFixes {
         }
 
         return cropped;
+    }
+
+    private static void verifyImageInDatabaseHasACorrespondingCorrectImageFile(String _id, AtomicInteger totalImagesProcessed, AtomicInteger errorCount) {
+        String imageFilename = ImageDownloader.imageFilename(_id, System.err);
+        try {
+            int n = totalImagesProcessed.getAndIncrement();
+            int ne = errorCount.get();
+            if (n % 10000 == 0) {
+                logger.info("Images verified to have correct image file: {}, errors: {}", n, ne);
+            }
+            File fd = new File(imageFilename);
+            if (!fd.exists()) {
+                logger.error("File does not exists: {}", imageFilename);
+                errorCount.incrementAndGet();
+                return;
+            }
+            if (fd.length() == 0) {
+                logger.error("Empty file: {}", imageFilename);
+                errorCount.incrementAndGet();
+                return;
+            }
+            RGBImage image = ImagePersistence.importRGB(fd);
+            if (image.getXSize() < MINIMUM_IMAGE_DIMENSION || image.getYSize() < MINIMUM_IMAGE_DIMENSION) {
+                logger.error("So small image ({} x {}): {}", image.getXSize(), image.getYSize(), imageFilename);
+                errorCount.incrementAndGet();
+                return;
+            }
+        } catch (Exception e) {
+            logger.error("Error processing: {}", imageFilename);
+            logger.error(e);
+            errorCount.incrementAndGet();
+        }
+    }
+
+    public static void verifyAllImageObjectsInDatabaseHasCorrespondingImageFile(MongoCollection<Document> imageCollection) {
+        logger.info("= VERIFYING THAT ALL IMAGES REFERENCED ON DATABASE HAS A CORRECT IMAGE FILE ==========");
+        Document filter = new Document("md", new BasicDBObject("$exists", true))
+                .append("x", true)
+                .append("a", new BasicDBObject("$exists", true))
+                .append("u", new BasicDBObject("$exists", true));
+        FindIterable<Document> parentImageIterable = imageCollection.find(filter)
+                .projection(Projections.include("_id", "a", "u", "md"))
+                .sort(new BasicDBObject("md", 1));
+
+        ThreadFactory threadFactory = Util.buildThreadFactory("ParentImagesChecker[%03d]");
+        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_IMAGE_CHECKER_THREADS, threadFactory);
+        AtomicInteger totalImagesProcessed = new AtomicInteger(0);
+        AtomicInteger errorCount = new AtomicInteger(0);
+
+        parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
+            executorService.submit(() ->
+                verifyImageInDatabaseHasACorrespondingCorrectImageFile(parentImageObject.get("_id").toString(), totalImagesProcessed, errorCount)
+            )
+        );
+
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
+                logger.error("Parent image comparator threads taking so long!");
+            }
+        } catch (InterruptedException e) {
+            logger.error(e);
+        }
+
+        logger.info("Total parent images verified: {}", totalImagesProcessed.get());
+        logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES PROCESS COMPLETE =========================");
+
+    }
+
+    private static void verifyDirectoryImageFilesHasRecordsInDatabase(MongoCollection<Document> imageCollection, String folderPath, AtomicInteger totalImagesProcessed, AtomicInteger errorCount) {
+        try {
+            File fd = new File(folderPath);
+            if (!fd.exists() || !fd.isDirectory()) {
+                logger.error("Can not open directory {}", fd.getAbsoluteFile());
+                return;
+            }
+            File[] children = fd.listFiles();
+            for (File child: children) {
+                int n = totalImagesProcessed.getAndIncrement();
+                int ne = errorCount.get();
+                if (n % 10000 == 0) {
+                    logger.info("Images verified so far: {}, errors: {}", n, ne);
+                }
+
+                String filename = child.getName();
+                String id = filename.replace(".jpg", "");
+
+                Document filter = new Document("_id", new ObjectId(id)).append("x", new BasicDBObject("$exists", true));
+                if (!imageCollection.find(filter).cursor().hasNext()) {
+                    errorCount.incrementAndGet();
+                    logger.error("Dangling file: {} - removed!", child.getAbsoluteFile());
+                    if (!child.delete()) {
+                        logger.error("Could not delete! {}", child.getAbsoluteFile());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error(e);
+        }
+    }
+    public static void removeDanglingImageFiles(MongoCollection<Document> imageCollection) {
+        try {
+            File imagesFolder = new File(ME_IMAGE_DOWNLOAD_PATH);
+
+            ThreadFactory threadFactory = Util.buildThreadFactory("ImageFileValidator[%03d]");
+            ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_IMAGE_CHECKER_THREADS, threadFactory);
+            AtomicInteger totalImagesProcessed = new AtomicInteger(0);
+            AtomicInteger errorCount = new AtomicInteger(0);
+
+            for (int i = 0x00; i <= 0xff; i++) {
+                String folderPath = String.format("%s/%02x", ME_IMAGE_DOWNLOAD_PATH, i);
+                executorService.submit(() ->
+                    verifyDirectoryImageFilesHasRecordsInDatabase(
+                        imageCollection, folderPath, totalImagesProcessed, errorCount)
+                );
+
+            }
+            executorService.shutdown();
+            try {
+                if (!executorService.awaitTermination(2, TimeUnit.HOURS)) {
+                    logger.error("Image file validator taking so long!");
+                }
+            } catch (InterruptedException e) {
+                logger.error(e);
+            }
+        } catch (Exception e) {
+            logger.error(e);
+        }
     }
 }
