@@ -239,7 +239,7 @@ public class MeDistributedCopierAndSyncTool {
         }
 
         for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
-            logger.info("----- Starting mwm for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
+            logger.info("----- Starting project for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
             String sshConnection = getSshConnectionString(i);
             String projectFolder = getUserFolder(i) + "/usr/paradigmas/stalker/backend_me";
             String command = "ssh " + sshConnection + " uxterm -ls -sb -fn 10x20 -display :" + (100 + i) + " -e \"" + projectFolder + "/gradlew -p " + projectFolder + " run &> " + projectFolder + "/report.txt\"";

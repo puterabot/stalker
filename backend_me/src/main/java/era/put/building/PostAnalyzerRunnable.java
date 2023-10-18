@@ -35,14 +35,6 @@ public class PostAnalyzerRunnable implements Runnable {
     @Override
     public void run() {
         try {
-            WebDriver webDriver = SeleniumUtil.initWebDriver(c);
-
-            if (webDriver == null) {
-                Util.exitProgram("Can not create connection with browser.");
-            }
-
-            SeleniumUtil.login(webDriver, c);
-
             MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
             if (mongoConnection == null) {
                 return;
@@ -54,18 +46,25 @@ public class PostAnalyzerRunnable implements Runnable {
             while ((e = availableListComputeElements.poll()) != null) {
                 out.println("= SERVICE: " + e.service + ", REGION: " + e.region + " =====");
                 String url = "https://co.mileroticos.com/" + e.service + "/" + e.region;
+                WebDriver webDriver = SeleniumUtil.initWebDriver(c);
+
+                if (webDriver == null) {
+                    Util.exitProgram("Can not create connection with browser.");
+                }
+
+                SeleniumUtil.login(webDriver, c);
                 webDriver.get(url);
                 SeleniumUtil.randomDelay(3000, 6000);
                 int i = 1;
                 while (PostAnalyzer.traverseListInCurrentPageAndGoNext(webDriver, mongoConnection.post, e.service, e.region, i, out)) {
                     i++;
                 }
+                webDriver.close();
             }
 
             out.println("= Ending list thread " + Thread.currentThread().getName() + " =====");
             out.println("End timestamp: " + new Date());
             System.out.println("  - Ending list thread " + Thread.currentThread().getName());
-            webDriver.close();
         } catch (Exception e) {
             logger.error(e);
         }
