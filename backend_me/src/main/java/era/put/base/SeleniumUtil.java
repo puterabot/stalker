@@ -47,7 +47,7 @@ public class SeleniumUtil {
     public static void login(WebDriver d, Configuration c) {
         d.get(c.getRootSiteUrl());
         delay(10000);
-        closeDialogs(d);
+        //closeDialogs(d);
     }
 
     public static void closeDialogs(WebDriver d) {
@@ -138,7 +138,7 @@ public class SeleniumUtil {
         } else {
             logger.info("Web driver already closed.");
         }
-        Util.printCurrentStackTrace();
+        //Util.printCurrentStackTrace();
 
         logger.info("Killing chrome processes on the OS");
         try {

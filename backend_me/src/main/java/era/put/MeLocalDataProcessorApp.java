@@ -33,7 +33,7 @@ public class MeLocalDataProcessorApp {
         ImageFixes.deleteChildImageFiles(mongoConnection.image);
         ImageFixes.downloadMissingImages(mongoConnection.image);
         ImageFixes.buildImageSizeAndShaSumDescriptors(mongoConnection);
-        ImageFixes.verifyAllImageObjectsInDatabaseHasCorrespondingImageFile(mongoConnection.image);  // WARNING: I/O intensive task
+        //ImageFixes.verifyAllImageObjectsInDatabaseHasCorrespondingImageFile(mongoConnection.image);  // WARNING: I/O intensive task
         ImageFixes.removeDanglingImageFiles(mongoConnection.image);
     }
 
@@ -63,7 +63,7 @@ public class MeLocalDataProcessorApp {
         completePostAndProfileDatabaseCollections();
 
         // 3. Modify images with empty borders, so comparison algorithms works better
-        ImageEmptyBorderRemover.removeEmptyBordersFromImages(); // WARNING: I/O intensive task
+        //ImageEmptyBorderRemover.removeEmptyBordersFromImages(); // WARNING: I/O intensive task
 
         // 4. Process inter-profile similarity hints by shasum image descriptors
         ImageInfo.deleteExternalChildImages();

@@ -200,7 +200,7 @@ public class MeDistributedCopierAndSyncTool {
     }
 
     private static void startX11Sessions() throws Exception {
-        Thread[] threads = new Thread[4 * NUMBER_OF_DISTRIBUTED_AGENTS];
+        Thread[] threads = new Thread[5 * NUMBER_OF_DISTRIBUTED_AGENTS];
         int t = 0;
         int dx = 0;
         int dy = 0;
@@ -219,6 +219,17 @@ public class MeDistributedCopierAndSyncTool {
         }
 
         Thread.sleep(2000);
+
+        for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
+            logger.info("----- Cleaning caches for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
+            String sshConnection = getSshConnectionString(i);
+            String command = "ssh " + sshConnection + " rm -rf .cache/chromium";
+            threads[t] = runAsyncCommand(command, i);
+            threads[t].start();
+            t++;
+            dx += incx;
+            dy += incy;
+        }
 
         for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
             logger.info("----- Starting mwm for host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
@@ -249,13 +260,13 @@ public class MeDistributedCopierAndSyncTool {
             t++;
         }
 
-        for (int i = 0; i < 4 * NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
+        for (int i = 0; i < 5 * NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
             threads[i].join();
         }
     }
     public static void main(String[] args) {
         try {
-            //copyProjectToDistributedAgents();
+            copyProjectToDistributedAgents();
             syncApplicationPropertiesWithDistributedAgents();
             startX11Sessions();
         } catch (Exception e) {

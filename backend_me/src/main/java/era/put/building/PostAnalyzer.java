@@ -41,6 +41,7 @@ public class PostAnalyzer {
             }
 
             // Identify location from post
+            SeleniumUtil.delay(100);
             String location = null;
             WebElement place = e.findElement(By.cssSelector("small.display-block"));
             if (place != null && place.getText() != null && !place.getText().isEmpty()) {
@@ -114,8 +115,9 @@ public class PostAnalyzer {
         String region,
         int pageCount,
         PrintStream out) {
-        SeleniumUtil.delay(400);
+        SeleniumUtil.delay(1000);
         SeleniumUtil.closeDialogs(d);
+        SeleniumUtil.delay(400);
         //boolean allNewInPage =
         traversePostsListInCurrentPage(d, post, category, region, pageCount, out);
         try {
