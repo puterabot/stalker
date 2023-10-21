@@ -3,7 +3,6 @@ package era.put;
 // Java
 import era.put.base.MongoUtil;
 import era.put.base.SeleniumUtil;
-import era.put.mining.ImageDupesDescriptorsProcessor;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
@@ -16,9 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 // Logging
-import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
 
@@ -149,16 +146,6 @@ public class MeBotSeleniumApp {
         }
 
         System.out.println("Post listings downloaded, timestamp: " + new Date());
-    }
-
-    public static void panicCheck(WebDriver webDriver) {
-        WebElement iconCheck = webDriver.findElement(By.id("logo"));
-        if (iconCheck == null) {
-            logger.error("PANIC!: RESTART SESSION - CHECK COUNTER BOT MEASURES HAS NOT BEEN TRIGGERED!");
-            SeleniumUtil.closeWebDriver(webDriver);
-            MeBotSeleniumApp.cleanUp();
-            Util.exitProgram("Panic test failed.");
-        }
     }
 
     public static void cleanUp() {
