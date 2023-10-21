@@ -44,11 +44,10 @@ public class SeleniumUtil {
     }
 
 
-    public static void login(WebDriver webDriver, Configuration c) {
-        webDriver.get(c.getRootSiteUrl());
+    public static void login(WebDriver d, Configuration c) {
+        d.get(c.getRootSiteUrl());
         delay(10000);
-        //closeDialogs(webDriver); // This is overriding urls... pending to check
-        panicCheck(webDriver);
+        //closeDialogs(d);
     }
 
     public static void closeDialogs(WebDriver d) {
@@ -151,40 +150,5 @@ public class SeleniumUtil {
 
     public static void randomDelay(int minimum, int maximum) {
         delay(minimum + random.nextInt(maximum - minimum));
-    }
-
-    public static void panicCheck(WebDriver webDriver) {
-        WebElement cloudFlareDetectionIframe = webDriver.findElement(By.tagName("iframe"));
-        if (cloudFlareDetectionIframe != null) {
-            webDriver.switchTo().frame(cloudFlareDetectionIframe);
-            logger.warn("PANIC!: CLOUDFLARE PRESENCE DETECTED... TRYING TO JUMP!");
-
-            Util.exitProgram("Panic test failed - Pending to implement Java AWT based click to jump CloudFlare!");
-
-            delay(10000);
-            WebElement cloudFlareInputCheckbox = webDriver.findElement(By.tagName("input"));
-            if (cloudFlareInputCheckbox == null) {
-                logger.error("PANIC! CLOUDFLARE INPUT CHECKBOX TEST FAILED!");
-                Util.exitProgram("Panic test failed - can not disable CloudFlare!.");
-            }
-            delay(5000);
-            try {
-                cloudFlareInputCheckbox.click();
-            } catch (Exception e) {
-                logger.error(e);
-                logger.error("PANIC! CLOUDFLARE INPUT CHECKBOX TEST FAILED!");
-                Util.exitProgram("Panic test failed - can not click disable CloudFlare!.");
-            }
-            delay(10000);
-            webDriver.switchTo().defaultContent();
-        }
-
-        WebElement iconCheck = webDriver.findElement(By.id("logo"));
-        if (iconCheck == null) {
-            logger.error("PANIC!: RESTART SESSION - CHECK COUNTER BOT MEASURES HAS NOT BEEN TRIGGERED!");
-            closeWebDriver(webDriver);
-            MeBotSeleniumApp.cleanUp();
-            Util.exitProgram("Panic test failed.");
-        }
     }
 }

@@ -2,6 +2,7 @@ package era.put.building;
 
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
+import era.put.MeBotSeleniumApp;
 import era.put.base.Configuration;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
@@ -577,7 +578,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
                 String url = p.getString("url");
                 if (url != null) {
                     webDriver.get(url);
-                    SeleniumUtil.panicCheck(webDriver);
+                    MeBotSeleniumApp.panicCheck(webDriver);
                     processProfilePage(webDriver, p, mongoConnection, c);
                 }
             }

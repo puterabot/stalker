@@ -37,6 +37,7 @@ public class ConfigurationColombia implements Configuration {
         "bogota/usme",
         "bogota/venecia",
         "bogota",
+        /*
         "amazonas/el-encanto",
         "amazonas/la-chorrera",
         "amazonas/la-pedrera",
@@ -576,6 +577,7 @@ public class ConfigurationColombia implements Configuration {
         "cordoba/tuchin",
         "cordoba/valencia",
         "cordoba",
+         */
         "cundinamarca/agua-de-dios",
         "cundinamarca/alban",
         "cundinamarca/anapoima",
@@ -693,6 +695,7 @@ public class ConfigurationColombia implements Configuration {
         "cundinamarca/zipacon",
         "cundinamarca/zipaquira",
         "cundinamarca",
+        /*
         "guainia/barrancominas",
         "guainia/cacahual",
         "guainia/inirida",
@@ -1193,6 +1196,7 @@ public class ConfigurationColombia implements Configuration {
         "vichada/puerto-carreno",
         "vichada/santa-rosalia",
         "vichada"
+        */
     };
 
     @Override

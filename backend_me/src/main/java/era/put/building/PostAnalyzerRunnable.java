@@ -73,7 +73,6 @@ public class PostAnalyzerRunnable implements Runnable {
             logger.info("  . URL: [{}]", url);
             if (webDriver == null) {
                 Util.exitProgram("Can not create connection with browser.");
-                return;
             }
 
             logger.info("  . Checking there is ME connection, Cloudfire free... ");
