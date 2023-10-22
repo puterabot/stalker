@@ -8,7 +8,6 @@ import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.SeleniumUtil;
 import era.put.base.Util;
-import java.io.File;
 import java.io.PrintStream;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -31,15 +30,15 @@ import org.openqa.selenium.WebElement;
 public class ProfileAnalyzerRunnable implements Runnable {
     private static final Logger logger = LogManager.getLogger(ProfileAnalyzerRunnable.class);
     private final ConcurrentLinkedQueue<Integer> availableProfileComputeElements;
-    private int id;
+    private final int id;
     private PrintStream out;
-    private Configuration c;
-    private int screenshootCounter = 0;
+    private final Configuration configuration;
+    //private int screenshootCounter = 0;
 
-    public ProfileAnalyzerRunnable(ConcurrentLinkedQueue<Integer> availableProfileComputeElements, int id, Configuration c) {
+    public ProfileAnalyzerRunnable(ConcurrentLinkedQueue<Integer> availableProfileComputeElements, int id, Configuration configuration) {
         this.availableProfileComputeElements = availableProfileComputeElements;
         this.id = id;
-        this.c = c;
+        this.configuration = configuration;
     }
 
     private int
@@ -113,7 +112,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
             ZonedDateTime zdt = ZonedDateTime.of(year, month, day, hour, minute, second, 0, ZoneId.of(c.getTimeZone()));
             return java.util.Date.from(zdt.toInstant());
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e);
             out.println("Cannot process date [" + label + "] on " + d.getCurrentUrl());
             return null;
         }
@@ -194,10 +193,10 @@ public class ProfileAnalyzerRunnable implements Runnable {
     private Set<String>
     extractImages(WebDriver d) {
         SeleniumUtil.scrollDownPage(d);
-        int sc = screenshootCounter % 100;
-        String msg = String.format("/tmp/screenshot%03d.jpg", sc);
+        //int sc = screenshootCounter % 100;
+        //String msg = String.format("/tmp/screenshot%03d.jpg", sc);
         //Util.fullPageScreenShot(d, msg);
-        screenshootCounter++;
+        //screenshootCounter++;
 
         List<WebElement> wl;
         try {
@@ -231,25 +230,29 @@ public class ProfileAnalyzerRunnable implements Runnable {
     private Document getOrCreateProfileFromPhoneNumber(
         WebDriver d, MongoCollection<Document> profile, String phone) {
         Document filter = new Document().append("p", phone);
-        MongoCursor<Document> cursor = profile.find(filter).iterator();
-        if (!cursor.hasNext()) {
-            profile.insertOne(filter);
-            cursor = profile.find(filter).iterator();
+        try {
+            MongoCursor<Document> cursor = profile.find(filter).iterator();
             if (!cursor.hasNext()) {
-                out.println("ERROR: Can not retrieve or create profile for phone " + phone);
-                out.println("ERROR processing " + d.getCurrentUrl());
-                d.quit();
-                endThread(106);
-                return null;
+                profile.insertOne(filter);
+                cursor = profile.find(filter).iterator();
+                if (!cursor.hasNext()) {
+                    out.println("ERROR: Can not retrieve or create profile for phone " + phone);
+                    out.println("ERROR processing " + d.getCurrentUrl());
+                    d.quit();
+                    endThread(106);
+                    return null;
+                }
             }
+            return cursor.next();
+        } catch (Exception e) {
+            logger.error(e);
+            return null;
         }
-        return cursor.next();
     }
-
 
     private Document getOrCreateImageFromUrl(
         WebDriver d, MongoCollection<Document> image, String url) {
-        Date md = ImageAnalyser.getDateFromUrl(url, c);
+        Date md = ImageAnalyser.getDateFromUrl(url, configuration);
         Document newDocument = new Document().append("url", url);
         if (md != null) {
             newDocument.append("md", md);
@@ -270,7 +273,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
         return cursor.next();
     }
 
-    private boolean removePostIfInexistent(WebDriver d, Document p, MongoCollection<Document> post) {
+    private boolean removePostIfNonExistent(WebDriver d, Document p, MongoCollection<Document> post) {
         try {
             WebElement e = d.findElement(By.id("http-error"));
             if (e != null) {
@@ -334,7 +337,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
         // Analyze candidate set
         TreeSet<String> validPhones = new TreeSet<>(); // Now handling only Colombia phones
         for (String s: phoneCandidates) {
-            // Note: this is a particular logic for phones at Colombia, will not scale to other coyntries
+            // Note: this is a particular logic for phones at Colombia, will not scale to other countries
             if (s.length() == 10 && s.startsWith("3")) {
                 validPhones.add(s);
             }
@@ -362,7 +365,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
         // Extract post date
         Date date = extractDate(d, c);
         if (date == null) {
-            if (!removePostIfInexistent(d, p, mongoConnection.post)) {
+            if (!removePostIfNonExistent(d, p, mongoConnection.post)) {
                 out.println("Skipping post with no date " + d.getCurrentUrl());
             }
             return;
@@ -396,13 +399,15 @@ public class ProfileAnalyzerRunnable implements Runnable {
             out.println("SKIP POST WITH NO TEL: " + d.getCurrentUrl());
             skipProfile(p, mongoConnection.post);
         } else {
-            int n = Math.min(60, description.length());
-            out.println("TEL: " + phone);
-            out.println("  - Source url: " + d.getCurrentUrl());
-            out.println("  - Date: " + date);
-            out.println("  - Whatsapp promise: " + (whatsappPromiseFlag ? "yes" : "no"));
-            out.println("  - Description: " + (hasDescription ? description.substring(0, n) + "... " : "<empty>"));
-            out.println("  - Images:" + imageUrls.size());
+            if (description != null) {
+                int n = Math.min(60, description.length());
+                out.println("TEL: " + phone);
+                out.println("  - Source url: " + d.getCurrentUrl());
+                out.println("  - Date: " + date);
+                out.println("  - Whatsapp promise: " + (whatsappPromiseFlag ? "yes" : "no"));
+                out.println("  - Description: " + (hasDescription ? description.substring(0, n) + "... " : "<empty>"));
+                out.println("  - Images:" + imageUrls.size());
+            }
         }
 
         // Write findings to database
@@ -458,12 +463,14 @@ public class ProfileAnalyzerRunnable implements Runnable {
                 // Create images
                 for (String img: imageUrls) {
                     Document imageObject = getOrCreateImageFromUrl(d, mongoConnection.image, img);
+                    if (imageObject == null) {
+                        continue;
+                    }
 
                     // Maintain relationship to user profile
                     if (imageObject.get("u") != null) {
-                        if (imageObject.get("u") instanceof ObjectId) {
-                            ObjectId userIdFromDatabase = (ObjectId) imageObject.get("u");
-                            if(userIdFromDatabase != null && userIdFromDatabase.toString().compareTo(profileObject.get("_id").toString()) != 0) {
+                        if (imageObject.get("u") instanceof ObjectId userIdFromDatabase) {
+                            if(userIdFromDatabase.toString().compareTo(profileObject.get("_id").toString()) != 0) {
                                 out.println("ERROR: Image " + img + " cannot be associated to two different user profiles!");
                                 out.println("  - Original user: " + userIdFromDatabase);
                                 out.println("  - Incoming user: " + profileObject.get("_id").toString());
@@ -499,18 +506,22 @@ public class ProfileAnalyzerRunnable implements Runnable {
                     } else if (arrayCandidate instanceof ArrayList<?> genericList) {
                         ArrayList<Object> castedList = new ArrayList<>(genericList);
                         boolean imageExistsInArray = false;
-                        for (Object o : castedList) {
-                            if (!(o instanceof ObjectId)) {
-                                out.println("ERROR: Image " + img + " has post relationships array with elements of invalid type " + o.getClass().getName());
-                                d.quit();
-                                endThread(112);
+
+                            for (Object o : castedList) {
+                                if (!(o instanceof ObjectId)) {
+                                    out.println("ERROR: Image " + img + " has post relationships array with elements of invalid type " + o.getClass().getName());
+                                    d.quit();
+                                    endThread(112);
+                                }
+                                ObjectId element;
+                                assert o instanceof ObjectId;
+                                element = (ObjectId) o;
+                                if (element.equals(p.get("_id"))) {
+                                    imageExistsInArray = true;
+                                    break;
+                                }
                             }
-                            ObjectId element = (ObjectId) o;
-                            if (element.equals(p.get("_id"))) {
-                                imageExistsInArray = true;
-                                break;
-                            }
-                        }
+
                         if (!imageExistsInArray) {
                             Object element = p.get("_id");
                             castedList.add(element);
@@ -545,7 +556,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
     }
 
     private PrintStream createPrintStream() throws Exception {
-        return new PrintStream(new File("./log/profileThread_" + id + ".log"));
+        return new PrintStream("./log/profileThread_" + id + ".log");
     }
 
     public void
@@ -557,6 +568,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
             webDriver = SeleniumUtil.initWebDriver(c);
             if (webDriver == null) {
                 Util.exitProgram("Can not connect to web browser.");
+                return;
             }
             SeleniumUtil.login(webDriver, c);
             out = createPrintStream();
@@ -571,7 +583,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
                 Document filter = new Document().append("i", i);
                 Document p = mongoConnection.post.find(filter).first();
                 if (p == null || p.get("p") != null) {
-                    logger.info("Not processing post " + p.getString("url"));
+                    logger.info("Not processing post {}", p != null ? p.getString("url") : "null");
                     continue;
                 }
 
@@ -604,19 +616,19 @@ public class ProfileAnalyzerRunnable implements Runnable {
         try {
             out.println("ERROR: Ending thread " + Thread.currentThread().getName() + " - status " + status);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e);
         }
     }
 
     @Override
     public void run() {
         try {
-            processPendingProfiles(c);
+            processPendingProfiles(configuration);
             out.println("= Ending profile thread " + Thread.currentThread().getName() + " =====");
             out.println("End timestamp: " + new Date());
             System.out.println("  - Ending profile thread " + Thread.currentThread().getName());
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error(e);
             endThread(999);
         }
     }
