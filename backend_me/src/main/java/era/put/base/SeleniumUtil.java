@@ -104,12 +104,13 @@ public class SeleniumUtil {
                 options.addArguments("--silent");
                 options.addArguments("--no-sandbox");
                 options.addArguments("--disable-dev-shm-usage");
-                /*
+
                 if (conf.useHeadlessBrowser()) {
                     // This has been deprecated. Pending to investigate how to replace.
-                    options.setHeadless(true);
+                    //options.setHeadless(true);
+                    logger.warn("Headless mode not supported on Cloudflare protected sites :(");
                 }
-                */
+
                 WebDriver driver = new ChromeDriver(options);
                 MeBotSeleniumApp.currentDrivers.add(driver);
                 return driver;
