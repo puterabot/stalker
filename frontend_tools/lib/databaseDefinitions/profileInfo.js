@@ -13,8 +13,8 @@ if (Meteor.isServer) {
             {lastService: {$not: /gigolo/}},
             {lastService: {$ne: "servicios-virtuales"}},
             
-            {lastPostDate: {$gte: new Date("2021-12-01T00:00:00.000Z")}},
-            {firstPostDate: {$gte: new Date("2021-12-01T00:00:00.000Z")}}
+            {lastPostDate: {$gte: new Date("2023-10-01T00:00:00.000Z")}},
+            {firstPostDate: {$gte: new Date("2023-10-01T00:00:00.000Z")}}
         ]};
         return globalProfileInfo.find(filter);
     });

@@ -6,7 +6,8 @@
         "visualize": "meteor --production --extra-packages bundle-visualizer"
     },
     "dependencies": {
-        "@babel/runtime": "^7.16.3",
+        "@babel/runtime": "^7.23.2",
+        "jquery": "^3.7.1",
         "meteor-node-stubs": "^0.4.1"
     }
 }
