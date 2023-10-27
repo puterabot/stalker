@@ -2,7 +2,7 @@ import { Meteor } from 'meteor/meteor';
 
 GLOBAL_properties = {};
 importPropertiesFile = function() {
-    const filename = '/home/jedilink/usr/paradigmas/stalker/frontend_tools/config/appConfig.json';
+    const filename = '../../../../../config/appConfig.json';
     console.log('READING CONFIGURATION FILE ' + filename);
     const fs = require('fs');
 
