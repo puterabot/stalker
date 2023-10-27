@@ -1,2 +1,3 @@
 config/dburl.conf
+config/appConfig.json
 .meteor/versions

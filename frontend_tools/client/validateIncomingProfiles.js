@@ -2,7 +2,6 @@ Router.route('/validateIncomingProfiles', {
     template: 'validateIncomingProfilesTemplate',
     data: function() {
         return Meteor.subscribe("profileInfo_latest", {object: "tuntun"});
-        //return Meteor.subscribe("profileInfo_maxImages");
     }
 });
 
