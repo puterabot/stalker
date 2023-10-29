@@ -6,8 +6,11 @@ import com.mongodb.client.MongoCollection;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -32,6 +35,7 @@ public class ImageDupesDescriptorsProcessor {
     private static final Logger logger = LogManager.getLogger(ImageDupesDescriptorsProcessor.class);
     private static String ME_IMAGE_DOWNLOAD_PATH;
     private static final int NUMBER_OF_DATABASE_IMPORTER_THREADS = 72;
+    private static final int NUMBER_OF_FINDIMAGEDUPES_THREADS = 2;
 
     static {
         try {
@@ -117,12 +121,62 @@ public class ImageDupesDescriptorsProcessor {
     private static void importFindImageDupesDescriptorForSet(String group, Set<String> filenames, AtomicInteger totalDescriptorGroupsProcessed) {
         logger.info("Creating findimagedupes descriptors for group {}: {} images", group, filenames.size());
 
-        // TODO: write code to call findimagedupes command.
+        try {
+            StringBuilder fileList = new StringBuilder();
+            for (String filename: filenames) {
+                fileList.append(filename + " ");
+            }
+
+            String command = "/usr/bin/findimagedupes -t 99.9% -n -f ./findimagedupes/db_" + group + ".bin -R " + fileList.toString();
+            String scriptFilename = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes/script_" + group + ".sh";
+            BufferedWriter scriptWriter = new BufferedWriter(new FileWriter(scriptFilename));
+            scriptWriter.write("#!/bin/bash\n");
+            scriptWriter.write("cd " + ME_IMAGE_DOWNLOAD_PATH + "\n");
+            scriptWriter.write(command + "\n");
+            scriptWriter.flush();
+            scriptWriter.close();
+
+            Process p = Runtime.getRuntime().exec("/bin/bash " + scriptFilename);
+
+            BufferedReader stdout = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            BufferedReader stderr = new BufferedReader(new InputStreamReader(p.getErrorStream()));
+
+            p.waitFor();
+            String line;
+            while ((line = stdout.readLine()) != null) {
+                logger.info(line);
+            }
+
+            String[] commonErrors = {
+                "Use of uninitialized value in concatenation (.) or string at /",
+                "Use of uninitialized value $ENV{\"LDFLAGS\"} in string at /"
+            };
+            while ((line = stderr.readLine()) != null) {
+                if (setContains(commonErrors, line)) {
+                    continue;
+                }
+                logger.error(line);
+            }
+        } catch (Exception e) {
+            logger.error(e);
+        }
+    }
+
+    private static boolean setContains(String[] commonErrors, String line) {
+        for (String candidate: commonErrors) {
+            if (line.startsWith(candidate)) {
+                return true;
+            }
+            if (line.startsWith("Warning: skipping file: ")) {
+                String damageCandidate = line.substring(24);
+                logger.error("Consider to check the health of file [{}]", damageCandidate);
+                // TODO: Perform skipped file verification checks: 1. file exists 2. file re-download 3. file check
+            }
+        }
+        return false;
     }
 
     private static void createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(File fd, MongoCollection<Document> image) {
-        logger.warn("Operation TODO, pending development");
-
         // 1: Find images without descriptors and group them by image folder
         ArrayList<Document> set = new ArrayList<>();
         set.add(new Document("x", true));
@@ -134,7 +188,7 @@ public class ImageDupesDescriptorsProcessor {
         imageIterable.forEach((Consumer<? super Document>) imageDocument -> {
             String _id = imageDocument.get("_id").toString();
             String groupFolder = _id.substring(22, 24);
-            String relativeFilename = "./" + groupFolder + "/" + _id + ".jpg";
+            String relativeFilename = groupFolder + "/" + _id + ".jpg";
             if (!groups.containsKey(groupFolder)) {
                 Set<String> subset = new TreeSet<>();
                 subset.add(relativeFilename);
@@ -146,7 +200,7 @@ public class ImageDupesDescriptorsProcessor {
 
         // 2. Compute find image dupes descriptors per folder
         ThreadFactory threadFactory = Util.buildThreadFactory("FindImageDupesDescriptorCalculator[%03d]");
-        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_DATABASE_IMPORTER_THREADS, threadFactory);
+        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_FINDIMAGEDUPES_THREADS, threadFactory);
         AtomicInteger totalDescriptorGroupsProcessed = new AtomicInteger(0);
 
         for (String group: groups.keySet()) {
@@ -198,7 +252,7 @@ public class ImageDupesDescriptorsProcessor {
             return;
         }
 
-        //createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(fd, mongoConnection.image);
+        createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(fd, mongoConnection.image);
         importFindImagesDupesDescriptorsFromBerkeleyDatabaseFiles(fd, mongoConnection.image);
     }
 }
