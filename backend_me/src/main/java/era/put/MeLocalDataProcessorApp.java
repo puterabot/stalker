@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 
 public class MeLocalDataProcessorApp {
     private static final Logger logger = LogManager.getLogger(MeLocalDataProcessorApp.class);
+    private static final boolean INCLUDE_IO_INTENSIVE_TASKS = false;
 
     private static void completeImageDatabaseCollection(Configuration c) throws Exception {
         MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
@@ -33,7 +34,9 @@ public class MeLocalDataProcessorApp {
         ImageFixes.deleteChildImageFiles(mongoConnection.image);
         ImageFixes.downloadMissingImages(mongoConnection.image);
         ImageFixes.buildImageSizeAndShaSumDescriptors(mongoConnection);
-        //ImageFixes.verifyAllImageObjectsInDatabaseHasCorrespondingImageFile(mongoConnection.image);  // WARNING: I/O intensive task
+        if (INCLUDE_IO_INTENSIVE_TASKS) {
+            ImageFixes.verifyAllImageObjectsInDatabaseHasCorrespondingImageFile(mongoConnection.image);
+        }
         ImageFixes.removeDanglingImageFiles(mongoConnection.image);
     }
 
@@ -63,7 +66,9 @@ public class MeLocalDataProcessorApp {
         completePostAndProfileDatabaseCollections();
 
         // 3. Modify images with empty borders, so comparison algorithms works better
-        //ImageEmptyBorderRemover.removeEmptyBordersFromImages(); // WARNING: I/O intensive task
+        if (INCLUDE_IO_INTENSIVE_TASKS) {
+            ImageEmptyBorderRemover.removeEmptyBordersFromImages();
+        }
 
         // 4. Process inter-profile similarity hints by shasum image descriptors
         ImageInfo.deleteExternalChildImages();

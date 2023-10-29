@@ -222,6 +222,19 @@ see if the phone has changed (or if the post is not available anymore).
 Proposed solution is to add a hint for this case (phone change at data origin) to a profileGroup, and in the
 interface for reviewing new profiles, add profile group traversal to detect group of phones.
 
+## Deleted images
+
+For yet undetermined reasons, there is evidence of previously existing image files being deleted.
+It is important to implement a backup schema for recently downloaded images, particularly if they are
+parent images.
+
+To mitigate, the following actions are pending:
+- When determining parents, images that are new parents should be backed up.
+- When missing images are detected, they should be marked as not downloaded, and download process should
+  be restarted/retried.
+- When a previously identified set of profiles contains child images that points to a missing master
+  image that failed to download on the retry, the image set should be cleaned/deleted.
+
 ## Useful queries
 
 ### To list attributes on a collection

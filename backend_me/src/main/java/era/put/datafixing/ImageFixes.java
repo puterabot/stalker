@@ -157,10 +157,11 @@ public class ImageFixes {
         FileToolReport fileToolReport = new FileToolReport();
 
         //
-        Document query = new Document("x", parentImageObject.get("_id"));
-        FindIterable<Document> childImageIterable = mongoConnection.image.find(query);
+        Document parentFilter = new Document("x", parentImageObject.get("_id"));
+        FindIterable<Document> childImageIterable = mongoConnection.image.find(parentFilter);
         ImageFileAttributes attributes; // Basic sha and image size descriptors
         attributes = ImageAnalyser.processImageFile(mongoConnection.image, parentImageObject, fileToolReport, System.out, updatedDescriptors);
+        mongoConnection.image.updateOne(parentFilter, new Document("$unset", new BasicDBObject("af", false)));
 
         if (attributes == null) {
             Util.exitProgram(
@@ -169,9 +170,9 @@ public class ImageFixes {
         }
 
         childImageIterable.forEach((Consumer<? super Document>)childImage -> {
-            Document filter = new Document().append("_id", childImage.get("_id"));
+            Document childFilter = new Document().append("_id", childImage.get("_id"));
             Document newDocument = new Document().append("a", attributes);
-            mongoConnection.image.updateOne(filter, new Document("$set", newDocument));
+            mongoConnection.image.updateOne(childFilter, new Document("$set", newDocument));
         });
     }
 
