@@ -84,9 +84,11 @@ This system connects to a mongodb database called `mileroticos` and uses the fol
     . w: width
     . h: height
     . f: file size
+    . note that a is present in all downloaded images
   - **af**: analysis for findimagedupes descriptors
     . non-existent: image not still processed
     . d: 32 bytes (256 bit) find image descriptor: normalized 16x16 binary image thumbnail
+    . note that af is present only on parent images (those with {x: true})
   - **md**: measured date from url
   - **x**: eXternal reference to proXy image (identical image older than this one)
     . non-existent: non grouped image

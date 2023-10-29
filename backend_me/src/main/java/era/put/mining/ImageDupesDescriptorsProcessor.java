@@ -6,7 +6,6 @@ import com.mongodb.client.MongoCollection;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
-import era.put.building.ImageDownloader;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
@@ -26,6 +25,8 @@ import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
+import org.bson.types.Binary;
+import org.bson.types.ObjectId;
 
 public class ImageDupesDescriptorsProcessor {
     private static final Logger logger = LogManager.getLogger(ImageDupesDescriptorsProcessor.class);
@@ -51,7 +52,7 @@ public class ImageDupesDescriptorsProcessor {
         return line.contains("data: ") && !line.contains("metadata: ");
     }
 
-    private static void processRecord(String key, String findImageDupesDescriptor, AtomicInteger totalDatabasesProcessed) {
+    private static void processRecord(String key, String findImageDupesDescriptor, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
         // Find image dupes descriptors are 32 byte arrays, represented as two hexadecimal nibbles.
         if (key == null || !key.startsWith(ME_IMAGE_DOWNLOAD_PATH) || findImageDupesDescriptor.length() != 64) {
             return;
@@ -63,10 +64,16 @@ public class ImageDupesDescriptorsProcessor {
         int n = totalDatabasesProcessed.incrementAndGet();
         if (n % 100000 == 0) {
             logger.info("Image descriptors imported: {}", n);
-            logger.info("  . key[{}]: {}", imageId, findImageDupesDescriptor);
         }
+
+        Document filter = new Document("_id", new ObjectId(imageId));
+        byte[] binaryData = javax.xml.bind.DatatypeConverter.parseHexBinary(findImageDupesDescriptor);
+        Binary binary = new Binary((byte) 0, binaryData);
+        Document updateDocument = new Document("$set", new Document("af.d", binary));
+        image.updateOne(filter, updateDocument);
     }
-    private static void processBerkeleyDatabase(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed) {
+
+    private static void processBerkeleyDatabase(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
         try {
             String command = "db_dump -d a " + ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes/" + berkeleyDatabaseFilename;
             Process process = Runtime.getRuntime().exec(command);
@@ -83,7 +90,7 @@ public class ImageDupesDescriptorsProcessor {
                     if (logicCount % 2 == 0) {
                         nextKey = data;
                     } else {
-                        processRecord(nextKey, data, totalDatabasesProcessed);
+                        processRecord(nextKey, data, totalDatabasesProcessed, image);
                     }
                     logicCount++;
                 }
@@ -96,8 +103,21 @@ public class ImageDupesDescriptorsProcessor {
         }
     }
 
+    /**
+    This method receives a set of image filenames, pending to process findimagedupes descriptors, and generates the
+    Berkeley database file with descriptors for the given group folder. For doing this, it calls findimagedupes
+    command on the filesystem.
+
+    Note that this method should be used incrementally, so not big image sets are called (this is restricted by
+    operating system maximum parameters length for a command). Initial file set on a big image set should be
+    computed differently (i.e. by hand). As an example, when this code was written, there was already 1.6 million
+    images to compute, making up to 6500 images per group. Their processing took 2 days and was controlled manually
+    by script files.
+    */
     private static void importFindImageDupesDescriptorForSet(String group, Set<String> filenames, AtomicInteger totalDescriptorGroupsProcessed) {
         logger.info("Creating findimagedupes descriptors for group {}: {} images", group, filenames.size());
+
+        // TODO: write code to call findimagedupes command.
     }
 
     private static void createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(File fd, MongoCollection<Document> image) {
@@ -132,6 +152,15 @@ public class ImageDupesDescriptorsProcessor {
         for (String group: groups.keySet()) {
             executorService.submit(() -> importFindImageDupesDescriptorForSet(group, groups.get(group), totalDescriptorGroupsProcessed));
         }
+
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.HOURS)) {
+                logger.error("Find image dupes descriptor import threads taking so long!");
+            }
+        } catch (InterruptedException e) {
+            logger.error(e);
+        }
     }
 
     private static void importFindImagesDupesDescriptorsFromBerkeleyDatabaseFiles(File fd, MongoCollection<Document> image) {
@@ -143,7 +172,7 @@ public class ImageDupesDescriptorsProcessor {
         if (children != null) {
             for (String berkeleyDatabaseFilename : children) {
                 executorService.submit(() ->
-                    processBerkeleyDatabase(berkeleyDatabaseFilename, totalDatabasesProcessed)
+                    processBerkeleyDatabase(berkeleyDatabaseFilename, totalDatabasesProcessed, image)
                 );
             }
         }
@@ -169,7 +198,7 @@ public class ImageDupesDescriptorsProcessor {
             return;
         }
 
-        createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(fd, mongoConnection.image);
-        //importFindImagesDupesDescriptorsFromBerkeleyDatabaseFiles(fd, mongoConnection.image);
+        //createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(fd, mongoConnection.image);
+        importFindImagesDupesDescriptorsFromBerkeleyDatabaseFiles(fd, mongoConnection.image);
     }
 }
