@@ -48,7 +48,7 @@ public class ImageDownloader {
             }
             return true;
         } catch (FileNotFoundException e) {
-            out.println("ERROR: Can not open file to download image");
+            out.println("ERROR: Can not open url [" + url + "] to download image");
             return false;
         } catch (IOException e) {
             out.println("ERROR: Can not write on to downloaded image file");

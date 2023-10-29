@@ -226,7 +226,11 @@ interface for reviewing new profiles, add profile group traversal to detect grou
 
 For yet undetermined reasons, there is evidence of previously existing image files being deleted.
 It is important to implement a backup schema for recently downloaded images, particularly if they are
-parent images.
+parent images:
+
+```
+db.image.find({$and: [{d: false}, {x: true}]}).count()
+```
 
 To mitigate, the following actions are pending:
 - When determining parents, images that are new parents should be backed up.

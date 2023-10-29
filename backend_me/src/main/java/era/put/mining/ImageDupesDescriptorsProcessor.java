@@ -13,6 +13,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -56,7 +59,35 @@ public class ImageDupesDescriptorsProcessor {
         return line.contains("data: ") && !line.contains("metadata: ");
     }
 
+    public static String convertEscapedStringToHexagesimalNibbles(String input) {
+        // Utiliza una expresión regular para encontrar las secuencias de escape.
+        Pattern patron = Pattern.compile("\\\\[0-9A-Fa-f]{1,2}");
+        Matcher matcher = patron.matcher(input);
+
+        StringBuffer resultado = new StringBuffer();
+        while (matcher.find()) {
+            // Convierte las secuencias de escape en bytes y luego en caracteres.
+            String secuenciaEscape = matcher.group();
+            int valor = Integer.parseInt(secuenciaEscape.substring(1), 16);
+            char caracter = (char) valor;
+            matcher.appendReplacement(resultado, Character.toString(caracter));
+        }
+        matcher.appendTail(resultado);
+
+        byte[] bytesArray = resultado.toString().getBytes(Charset.forName("ISO-8859-1"));
+        StringBuilder hexString = new StringBuilder(2 * bytesArray.length);
+        for (byte b : bytesArray) {
+            hexString.append(String.format("%02X", b));
+        }
+        return hexString.toString();
+    }
+
     private static void processRecord(String key, String findImageDupesDescriptor, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
+        // Replace escape sequences in descriptor if needed
+        if (findImageDupesDescriptor.length() != 64) {
+            findImageDupesDescriptor = convertEscapedStringToHexagesimalNibbles(findImageDupesDescriptor);
+        }
+
         // Find image dupes descriptors are 32 byte arrays, represented as two hexadecimal nibbles.
         if (key == null || !key.startsWith(ME_IMAGE_DOWNLOAD_PATH) || findImageDupesDescriptor.length() != 64) {
             return;
@@ -124,7 +155,12 @@ public class ImageDupesDescriptorsProcessor {
         try {
             StringBuilder fileList = new StringBuilder();
             for (String filename: filenames) {
-                fileList.append(filename + " ");
+                File fd = new File(filename);
+                if (fd.exists()) {
+                    fileList.append(filename + " ");
+                } else {
+                    logger.warn("Image file not found: {}", filename);
+                }
             }
 
             String command = "/usr/bin/findimagedupes -t 99.9% -n -f ./findimagedupes/db_" + group + ".bin -R " + fileList.toString();
@@ -167,11 +203,11 @@ public class ImageDupesDescriptorsProcessor {
             if (line.startsWith(candidate)) {
                 return true;
             }
-            if (line.startsWith("Warning: skipping file: ")) {
-                String damageCandidate = line.substring(24);
-                logger.error("Consider to check the health of file [{}]", damageCandidate);
-                // TODO: Perform skipped file verification checks: 1. file exists 2. file re-download 3. file check
-            }
+        }
+        if (line.startsWith("Warning: skipping file: ")) {
+            String damageCandidate = line.substring(24);
+            logger.error("Consider to check the health of file [{}]", damageCandidate);
+            // TODO: Perform skipped file verification checks: 1. file exists 2. file re-download 3. file check
         }
         return false;
     }
