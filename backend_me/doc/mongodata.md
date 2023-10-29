@@ -78,12 +78,15 @@ This system connects to a mongodb database called `mileroticos` and uses the fol
     . non-existent: pending to download
     . true: download successful
     . false: error downloading (i.e. deleted when downloading)
-  - **a**: analysis info
+  - **a**: analysis info (basic sha + size)
     . non-existent: image not still processed
     . s: sha 512 sum
     . w: width
     . h: height
     . f: file size
+  - **af**: analysis for findimagedupes descriptors
+    . non-existent: image not still processed
+    . d: 32 bytes (256 bit) find image descriptor: normalized 16x16 binary image thumbnail
   - **md**: measured date from url
   - **x**: eXternal reference to proXy image (identical image older than this one)
     . non-existent: non grouped image
@@ -105,6 +108,13 @@ This system connects to a mongodb database called `mileroticos` and uses the fol
   - **numImages**: ?
   - **imageIdArray**: ?
   - **flags**: ?
+
+Note that groups are made around hints. Hints can be strong or weak.
+- Strong hint: it is 100% changes of having a profile pair: 1. identical image files, 2. profile changed at origin,
+  3. a previously weak hint verified by hand.
+- Weak hint: it is a change that this hint relates two profiles, and also a change of a mistake / false positive:
+  4. file descriptor computed by findimagedupes, haar face detection, YOLO or others.
+- On the UI for traversing recent profiles, strong and weak hints should be shown.
 
 # Sample queries
 
@@ -196,6 +206,19 @@ report. Should rebuild them.
 ```
 db.profileInfo.find({firstPostDate: null}).count()
 ```
+
+## External links data available on profiles
+
+Check 3012301101. It has "Visita mi web" link to onlyfans profile.
+
+## Deleted and updated profiles in source
+
+It has been detected that ME users can change a phone, without deleting previously published posts. This can
+be detected by browing again to the page of the post, extrating again the phone number from it and checking to
+see if the phone has changed (or if the post is not available anymore).
+
+Proposed solution is to add a hint for this case (phone change at data origin) to a profileGroup, and in the
+interface for reviewing new profiles, add profile group traversal to detect group of phones.
 
 ## Useful queries
 

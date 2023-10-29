@@ -1,18 +1,31 @@
 package era.put.mining;
 
+import com.mongodb.BasicDBObject;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoCollection;
+import era.put.base.MongoConnection;
+import era.put.base.MongoUtil;
 import era.put.base.Util;
+import era.put.building.ImageDownloader;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.bson.Document;
 
 public class ImageDupesDescriptorsProcessor {
     private static final Logger logger = LogManager.getLogger(ImageDupesDescriptorsProcessor.class);
@@ -83,13 +96,45 @@ public class ImageDupesDescriptorsProcessor {
         }
     }
 
-    public static void updateFindImageDupesDescriptors() {
-        String descriptorsDatabaseFolder = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes";
-        File fd = new File(descriptorsDatabaseFolder);
-        if (!fd.exists() || !fd.isDirectory()) {
-            logger.error("{} is not a directory", descriptorsDatabaseFolder);
-        }
+    private static void importFindImageDupesDescriptorForSet(String group, Set<String> filenames, AtomicInteger totalDescriptorGroupsProcessed) {
+        logger.info("Creating findimagedupes descriptors for group {}: {} images", group, filenames.size());
+    }
 
+    private static void createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(File fd, MongoCollection<Document> image) {
+        logger.warn("Operation TODO, pending development");
+
+        // 1: Find images without descriptors and group them by image folder
+        ArrayList<Document> set = new ArrayList<>();
+        set.add(new Document("x", true));
+        set.add(new Document("af", new BasicDBObject("$exists", false)));
+        Document filter = new Document("$and", set);
+        FindIterable<Document> imageIterable = image.find(filter);
+
+        Map<String, Set<String>> groups = new HashMap<>();
+        imageIterable.forEach((Consumer<? super Document>) imageDocument -> {
+            String _id = imageDocument.get("_id").toString();
+            String groupFolder = _id.substring(22, 24);
+            String relativeFilename = "./" + groupFolder + "/" + _id + ".jpg";
+            if (!groups.containsKey(groupFolder)) {
+                Set<String> subset = new TreeSet<>();
+                subset.add(relativeFilename);
+                groups.put(groupFolder, subset);
+            } else {
+                groups.get(groupFolder).add(relativeFilename);
+            }
+        });
+
+        // 2. Compute find image dupes descriptors per folder
+        ThreadFactory threadFactory = Util.buildThreadFactory("FindImageDupesDescriptorCalculator[%03d]");
+        ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_DATABASE_IMPORTER_THREADS, threadFactory);
+        AtomicInteger totalDescriptorGroupsProcessed = new AtomicInteger(0);
+
+        for (String group: groups.keySet()) {
+            executorService.submit(() -> importFindImageDupesDescriptorForSet(group, groups.get(group), totalDescriptorGroupsProcessed));
+        }
+    }
+
+    private static void importFindImagesDupesDescriptorsFromBerkeleyDatabaseFiles(File fd, MongoCollection<Document> image) {
         ThreadFactory threadFactory = Util.buildThreadFactory("FindImageDupesDescriptorDatabaseImporter[%03d]");
         ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_DATABASE_IMPORTER_THREADS, threadFactory);
         AtomicInteger totalDatabasesProcessed = new AtomicInteger(0);
@@ -98,7 +143,7 @@ public class ImageDupesDescriptorsProcessor {
         if (children != null) {
             for (String berkeleyDatabaseFilename : children) {
                 executorService.submit(() ->
-                        processBerkeleyDatabase(berkeleyDatabaseFilename, totalDatabasesProcessed)
+                    processBerkeleyDatabase(berkeleyDatabaseFilename, totalDatabasesProcessed)
                 );
             }
         }
@@ -111,5 +156,20 @@ public class ImageDupesDescriptorsProcessor {
         } catch (InterruptedException e) {
             logger.error(e);
         }
+    }
+
+    public static void updateFindImageDupesDescriptors() {
+        String descriptorsDatabaseFolder = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes";
+        File fd = new File(descriptorsDatabaseFolder);
+        if (!fd.exists() || !fd.isDirectory()) {
+            logger.error("{} is not a directory", descriptorsDatabaseFolder);
+        }
+        MongoConnection mongoConnection = MongoUtil.connectWithMongoDatabase();
+        if (mongoConnection == null) {
+            return;
+        }
+
+        createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(fd, mongoConnection.image);
+        //importFindImagesDupesDescriptorsFromBerkeleyDatabaseFiles(fd, mongoConnection.image);
     }
 }
