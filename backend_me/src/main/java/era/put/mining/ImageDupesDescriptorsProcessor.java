@@ -59,22 +59,26 @@ public class ImageDupesDescriptorsProcessor {
         return line.contains("data: ") && !line.contains("metadata: ");
     }
 
+    /**
+    This method can not receive any possible input since some escape sequences are ambiguous.
+    Example: \03f is \03 followed by 'f'? or is \0 followed by "3f".
+    Should replace use of db_dump by direct binary file processing.
+    */
+    @Deprecated
     public static String convertEscapedStringToHexagesimalNibbles(String input) {
-        // Utiliza una expresión regular para encontrar las secuencias de escape.
         Pattern patron = Pattern.compile("\\\\[0-9A-Fa-f]{1,2}");
         Matcher matcher = patron.matcher(input);
 
-        StringBuffer resultado = new StringBuffer();
+        StringBuffer result = new StringBuffer();
         while (matcher.find()) {
-            // Convierte las secuencias de escape en bytes y luego en caracteres.
             String secuenciaEscape = matcher.group();
             int valor = Integer.parseInt(secuenciaEscape.substring(1), 16);
             char caracter = (char) valor;
-            matcher.appendReplacement(resultado, Character.toString(caracter));
+            matcher.appendReplacement(result, Character.toString(caracter));
         }
-        matcher.appendTail(resultado);
+        matcher.appendTail(result);
 
-        byte[] bytesArray = resultado.toString().getBytes(Charset.forName("ISO-8859-1"));
+        byte[] bytesArray = result.toString().getBytes(Charset.forName("ISO-8859-1"));
         StringBuilder hexString = new StringBuilder(2 * bytesArray.length);
         for (byte b : bytesArray) {
             hexString.append(String.format("%02X", b));
@@ -85,7 +89,7 @@ public class ImageDupesDescriptorsProcessor {
     private static void processRecord(String key, String findImageDupesDescriptor, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
         // Replace escape sequences in descriptor if needed
         if (findImageDupesDescriptor.length() != 64) {
-            findImageDupesDescriptor = convertEscapedStringToHexagesimalNibbles(findImageDupesDescriptor);
+            findImageDupesDescriptor = convertEscapedStringToHexagesimalNibbles(findImageDupesDescriptor, key);
         }
 
         // Find image dupes descriptors are 32 byte arrays, represented as two hexadecimal nibbles.
@@ -110,7 +114,8 @@ public class ImageDupesDescriptorsProcessor {
 
     private static void processBerkeleyDatabase(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
         try {
-            String command = "db_dump -d a " + ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes/" + berkeleyDatabaseFilename;
+            String filename = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes/" + berkeleyDatabaseFilename;
+            String command = "db_dump -d a " + filename;
             Process process = Runtime.getRuntime().exec(command);
             InputStream inputStream = process.getInputStream();
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -133,6 +138,10 @@ public class ImageDupesDescriptorsProcessor {
 
             reader.close();
             process.waitFor();
+            File dbFd = new File(filename);
+            //if (!dbFd.delete()) {
+            //    logger.error("Can not delete " + filename);
+            //}
         } catch (Exception e) {
             logger.error(e);
         }
@@ -153,13 +162,14 @@ public class ImageDupesDescriptorsProcessor {
         logger.info("Creating findimagedupes descriptors for group {}: {} images", group, filenames.size());
 
         try {
+            totalDescriptorGroupsProcessed.incrementAndGet();
             StringBuilder fileList = new StringBuilder();
-            for (String filename: filenames) {
-                File fd = new File(filename);
+            for (String relativeFilename: filenames) {
+                File fd = new File(ME_IMAGE_DOWNLOAD_PATH + "/" + relativeFilename);
                 if (fd.exists()) {
-                    fileList.append(filename + " ");
+                    fileList.append(relativeFilename + " ");
                 } else {
-                    logger.warn("Image file not found: {}", filename);
+                    logger.warn("Image file not found: {}", relativeFilename);
                 }
             }
 
@@ -193,6 +203,11 @@ public class ImageDupesDescriptorsProcessor {
                 }
                 logger.error(line);
             }
+
+            File scriptFd = new File(scriptFilename);
+            if (!scriptFd.delete()) {
+                logger.error("Can not delete " + scriptFd.getAbsolutePath());
+            }
         } catch (Exception e) {
             logger.error(e);
         }
@@ -216,6 +231,7 @@ public class ImageDupesDescriptorsProcessor {
         // 1: Find images without descriptors and group them by image folder
         ArrayList<Document> set = new ArrayList<>();
         set.add(new Document("x", true));
+        set.add(new Document("d", true));
         set.add(new Document("af", new BasicDBObject("$exists", false)));
         Document filter = new Document("$and", set);
         FindIterable<Document> imageIterable = image.find(filter);

@@ -20,6 +20,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -48,11 +49,11 @@ public class ImageEmptyBorderRemover {
 
 
                 // Debug! TODO: Test white logic case
-                //String debugInputFilename = "/tmp/" + _id + ".jpg";
+                String debugInputFilename = originalImageFile.getAbsolutePath() + ".orig";
+                FileUtils.copyFile(originalImageFile, new File(debugInputFilename));
                 //String debugOutputFilename = "/tmp/" + _id + "_trimmed.jpg";
                 //ImagePersistence.exportJPG(new File(debugInputFilename), image);
                 //ImagePersistence.exportJPG(new File(debugOutputFilename), cropped);
-
 
                 // Warning: at this point database descriptors are outdated, need to recalculate!
                 ImagePersistence.exportJPG(new File(filename), cropped);

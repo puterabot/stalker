@@ -13,16 +13,17 @@ For other than linux platforms, it is recommended to use a virtual machine with 
 
 For Linux Ubuntu 22.04, the following software is needed:
 - **Java 17**: java, javac commands.
-- **Berkeley Database utils**: db-dump command.
+- **file**: tool to detect image types, useful to extract image size descriptors from jpeg files.
 - **coreutils**: sha512sum command, useful to compute descriptors to identify repeated image files.
 - **findimagedupes**: tool use to compute image descriptors, useful to detect global image visual similarities.
+- **Berkeley Database utils**: db-dump command.
 - **Xnest**: use for web scrapper agents to keep separate user sessions and avoid bot detectors.
 - **Xvfb**: headless version of Xnest.
-- **file**: tool to detect image types, useful to extract image size descriptors from jpeg files.
+- **xset**: to disable screensaver on Xnest / Xvfb based agent sessions.
 
-Recommended command to install needed dependencies:
+Recommended command to install needed dependencies (Debian / Ubuntu):
 ```
-sudo apt-get install db-util xnest xvfb coreutils findimagedupes
+sudo apt-get install file coreutils findimagedupes db-util xnest xvfb x11-xserver-utils
 ```
 
 ### Making a configuration file
