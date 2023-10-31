@@ -89,7 +89,7 @@ public class ImageDupesDescriptorsProcessor {
     private static void processRecord(String key, String findImageDupesDescriptor, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
         // Replace escape sequences in descriptor if needed
         if (findImageDupesDescriptor.length() != 64) {
-            findImageDupesDescriptor = convertEscapedStringToHexagesimalNibbles(findImageDupesDescriptor, key);
+            findImageDupesDescriptor = convertEscapedStringToHexagesimalNibbles(findImageDupesDescriptor);
         }
 
         // Find image dupes descriptors are 32 byte arrays, represented as two hexadecimal nibbles.
