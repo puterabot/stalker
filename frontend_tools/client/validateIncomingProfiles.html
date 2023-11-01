@@ -83,9 +83,13 @@
                     href="https://co.mileroticos.com/{{selectedProfileInfo.lastService}}/{{selectedProfileInfo.p}}">{{selectedProfileInfo.p}}</a>
                 ({{selectedProfileIndex}}/{{profileInfo.length}})</h1>
             <div id="previewsArea">
-                {{#each profileDataset.images}}
-                <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
-                {{/each}}
+                {{#if profileDataset.images.length}}
+                    {{#each profileDataset.images}}
+                        <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
+                    {{/each}}
+                {{else}}
+                    Profile has no images! check database.
+                {{/if}}
             </div>
             <button id="prevButton">PREV</button>
             <button id="nextButton">NEXT</button>
