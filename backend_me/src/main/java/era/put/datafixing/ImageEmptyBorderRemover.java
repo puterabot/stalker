@@ -49,7 +49,7 @@ public class ImageEmptyBorderRemover {
 
 
                 // Debug! TODO: Test white logic case
-                String debugInputFilename = originalImageFile.getAbsolutePath() + ".orig";
+                String debugInputFilename = originalImageFile.getAbsolutePath() + ".origBorders";
                 FileUtils.copyFile(originalImageFile, new File(debugInputFilename));
                 //String debugOutputFilename = "/tmp/" + _id + "_trimmed.jpg";
                 //ImagePersistence.exportJPG(new File(debugInputFilename), image);

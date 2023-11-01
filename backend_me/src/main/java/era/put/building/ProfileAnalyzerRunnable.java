@@ -1,5 +1,6 @@
 package era.put.building;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import era.put.MeBotSeleniumApp;
@@ -358,14 +359,14 @@ public class ProfileAnalyzerRunnable implements Runnable {
     private void
     processProfilePage(
             WebDriver d,
-            Document p,
+            Document postDocument,
             MongoConnection mongoConnection,
             Configuration c) {
         SeleniumUtil.closeDialogs(d);
         // Extract post date
         Date date = extractDate(d, c);
         if (date == null) {
-            if (!removePostIfNonExistent(d, p, mongoConnection.post)) {
+            if (!removePostIfNonExistent(d, postDocument, mongoConnection.post)) {
                 out.println("Skipping post with no date " + d.getCurrentUrl());
             }
             return;
@@ -383,7 +384,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
 
         if (imageUrls == null) {
             out.println("SKIP POST WITH NO IMAGES " + d.getCurrentUrl());
-            skipProfile(p, mongoConnection.post);
+            skipProfile(postDocument, mongoConnection.post);
             return;
         }
 
@@ -397,7 +398,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
 
         if (!hasPhone) {
             out.println("SKIP POST WITH NO TEL: " + d.getCurrentUrl());
-            skipProfile(p, mongoConnection.post);
+            skipProfile(postDocument, mongoConnection.post);
         } else {
             if (description != null) {
                 int n = Math.min(60, description.length());
@@ -417,7 +418,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
             Document query;
 
             // Mark post as processed
-            filter = new Document().append("_id", p.get("_id"));
+            filter = new Document().append("_id", postDocument.get("_id"));
             newDocument = new Document().append("p", hasPhone);
             query = new Document().append("$set", newDocument);
             mongoConnection.post.updateOne(filter, query);
@@ -474,11 +475,13 @@ public class ProfileAnalyzerRunnable implements Runnable {
                                 out.println("ERROR: Image " + img + " cannot be associated to two different user profiles!");
                                 out.println("  - Original user: " + userIdFromDatabase);
                                 out.println("  - Incoming user: " + profileObject.get("_id").toString());
+                                out.flush();
                                 d.quit();
                                 endThread(108);
                             }
                         } else {
                             out.println("ERROR: Image " + img + " has a user that is not an ObjectId but " + profileObject.get("u").getClass().getName());
+                            out.flush();
                             d.quit();
                             endThread(109);
                         }
@@ -516,14 +519,14 @@ public class ProfileAnalyzerRunnable implements Runnable {
                                 ObjectId element;
                                 assert o instanceof ObjectId;
                                 element = (ObjectId) o;
-                                if (element.equals(p.get("_id"))) {
+                                if (element.equals(postDocument.get("_id"))) {
                                     imageExistsInArray = true;
                                     break;
                                 }
                             }
 
                         if (!imageExistsInArray) {
-                            Object element = p.get("_id");
+                            Object element = postDocument.get("_id");
                             castedList.add(element);
                             Document o = new Document().append("_id", imageObject.get("_id"));
                             newDocument = new Document().append("p", castedList);
@@ -564,7 +567,7 @@ public class ProfileAnalyzerRunnable implements Runnable {
         WebDriver webDriver = null;
         try {
             logger.info("Starting processPendingProfiles.");
-            SeleniumUtil.delay(4000);
+            SeleniumUtil.delay(1000);
             webDriver = SeleniumUtil.initWebDriver(c);
             if (webDriver == null) {
                 Util.exitProgram("Can not connect to web browser.");
@@ -582,16 +585,38 @@ public class ProfileAnalyzerRunnable implements Runnable {
             while ((i = availableProfileComputeElements.poll()) != null) {
                 Document filter = new Document().append("i", i);
                 Document p = mongoConnection.post.find(filter).first();
-                if (p == null || p.get("p") != null) {
-                    logger.info("Not processing post {}", p != null ? p.getString("url") : "null");
+                if (p == null ) {
+                    logger.info("Not processing post {}, post not found on database", p != null ? p.getString("url") : "null");
+                    continue;
+                }
+                if ( p.get("p") != null) {
+                    logger.info("Not processing post with id {} and url {}, post marked as processed", i, p != null ? p.getString("url") : "null");
                     continue;
                 }
 
                 String url = p.getString("url");
                 if (url != null) {
                     webDriver.get(url);
+                    if (SeleniumUtil.blockedPage(webDriver)) {
+                        logger.error("ERROR: Page blocked! {}", url);
+                        Document updateFilter = new Document("_id", new ObjectId(p.get("_id").toString()));
+                        Document disableQuery = new Document("$set", new BasicDBObject("p", false));
+                        mongoConnection.post.updateOne(updateFilter, disableQuery);
+                        continue;
+                    }
                     MeBotSeleniumApp.panicCheck(webDriver);
-                    processProfilePage(webDriver, p, mongoConnection, c);
+
+                    boolean check = errorCheck(webDriver);
+
+                    if (check) {
+                        logger.info("Disabling post {}, url not available", p.get("_id").toString());
+                        Document updateFilter = new Document("_id", new ObjectId(p.get("_id").toString()));
+                        Document query = new Document("$set", new BasicDBObject("p", false));
+                        mongoConnection.post.updateOne(updateFilter, query);
+                        SeleniumUtil.delay(500);
+                    } else {
+                        processProfilePage(webDriver, p, mongoConnection, c);
+                    }
                 }
             }
             SeleniumUtil.closeWebDriver(webDriver);
@@ -610,6 +635,20 @@ public class ProfileAnalyzerRunnable implements Runnable {
             }
             processPendingProfiles(c);
         }
+    }
+
+    private static boolean errorCheck(WebDriver webDriver) {
+        SeleniumUtil.delay(400);
+        try {
+            WebElement errorCheck = webDriver.findElement(By.className("error"));
+            if ( errorCheck != null ) {
+                return errorCheck.getText().contains("solicitada no existe") ||
+                        errorCheck.getText().contains("El perfil que buscas no existe");
+            }
+        } catch (NoSuchElementException e) {
+            return false;
+        }
+        return false;
     }
 
     private void endThread(int status) {

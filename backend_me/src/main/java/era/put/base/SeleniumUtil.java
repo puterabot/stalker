@@ -152,4 +152,14 @@ public class SeleniumUtil {
     public static void randomDelay(int minimum, int maximum) {
         delay(minimum + random.nextInt(maximum - minimum));
     }
+
+    public static boolean blockedPage(WebDriver webDriver) {
+        delay(400);
+        try {
+            WebElement blockedHeadline = webDriver.findElement(By.className("cf-subheadline"));
+            return (blockedHeadline != null);
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
