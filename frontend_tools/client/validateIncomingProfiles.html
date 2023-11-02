@@ -81,7 +81,10 @@
         <span class="rightcol">
             <h1>Profile: <a
                     href="https://co.mileroticos.com/{{selectedProfileInfo.lastService}}/{{selectedProfileInfo.p}}">{{selectedProfileInfo.p}}</a>
-                ({{selectedProfileIndex}}/{{profileInfo.length}})</h1>
+              ({{selectedProfileIndex}}/{{profileInfo.length}})</h1>
+	    <p>
+	      Images: {{profileDataset.images.length}}
+	    </p>
             <div id="previewsArea">
                 {{#if profileDataset.images.length}}
                     {{#each profileDataset.images}}

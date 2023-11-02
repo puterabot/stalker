@@ -3,6 +3,7 @@ globalProfileInfo = new Mongo.Collection('profileInfo');
 if (Meteor.isServer) {
     console.log('  - Publishing profileInfo collection');
     Meteor.publish('profileInfo_latest', function (param) {
+        
         const filter = {$and: [
             {firstPostDate: {$ne: null}},
             {lastLocation: /bog/i},
@@ -13,9 +14,11 @@ if (Meteor.isServer) {
             {lastService: {$not: /gigolo/}},
             {lastService: {$ne: "servicios-virtuales"}},
             
-            {lastPostDate: {$gte: new Date("2023-10-01T00:00:00.000Z")}},
-            {firstPostDate: {$gte: new Date("2023-10-01T00:00:00.000Z")}}
+            {lastPostDate: {$gte: new Date("2023-11-01T00:00:00.000Z")}},
+            {firstPostDate: {$gte: new Date("2023-10-21T00:00:00.000Z")}}
         ]};
+        
+        //const filter = { $expr: { $gt: [{ $size: "$imageIdArray" }, 2000] } };
         return globalProfileInfo.find(filter);
     });
     Meteor.publish('profileInfo_maxImages', function () {

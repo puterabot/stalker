@@ -12,7 +12,7 @@ Meteor.methods({
         }
 
         const startUrl = GLOBAL_properties['imageBaseUrl'];
-        const profile = global['globalProfile'];
+        const profile = global['globalProfileInfo'];
         const image = global['globalImage'];
         const p = profile.findOne({ _id: _id });
         if (!p) {
@@ -20,7 +20,12 @@ Meteor.methods({
         }
 
         let result = {};
-        result.images = image.find({ $and: [{ u: p._id }, { x: true }] }).fetch();
+	result.images = [];
+	for (let i = 0; i < p.imageIdArray.length; i++ ) {
+	    const img = image.findOne({_id: p.imageIdArray[i]});
+	    result.images.push(img);
+	}
+
         for (let i = 0; i < result.images.length; i++) {
             const img = result.images[i];
             img.localUrl = getLocalFilename(startUrl, img._id);
