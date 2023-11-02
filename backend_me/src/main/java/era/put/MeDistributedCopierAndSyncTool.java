@@ -1,5 +1,6 @@
 package era.put;
 
+import era.put.base.SeleniumUtil;
 import era.put.base.Util;
 import era.put.distributed.AsyncRemoteRunner;
 import java.io.BufferedReader;
@@ -213,6 +214,7 @@ public class MeDistributedCopierAndSyncTool {
             String command = "ssh -Y " + sshConnection + " Xnest :" + (100 + i) + " -geometry 1920x1080+" + dx + "+" + dy + " -name " + sshConnection;
             threads[t] = runAsyncCommand(command, i);
             threads[t].start();
+            Thread.sleep(500);
             t++;
             dx += incx;
             dy += incy;
@@ -266,7 +268,7 @@ public class MeDistributedCopierAndSyncTool {
     }
     public static void main(String[] args) {
         try {
-            copyProjectToDistributedAgents();
+            //copyProjectToDistributedAgents();
             syncApplicationPropertiesWithDistributedAgents();
             startX11Sessions();
         } catch (Exception e) {

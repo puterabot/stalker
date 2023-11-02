@@ -30,7 +30,6 @@ public class PostAnalyzer {
         String region, int pageCount,
         PrintStream out) {
         List<WebElement> l = d.findElements(By.className("thumbail"));
-        //boolean orig = true;
 
         String msg = String.format("Page %02d : ", pageCount);
         out.print(msg);
@@ -93,7 +92,6 @@ public class PostAnalyzer {
             }
         }
         out.print("\n");
-        //return orig;
     }
 
     /**
@@ -118,7 +116,6 @@ public class PostAnalyzer {
         SeleniumUtil.delay(1000);
         SeleniumUtil.closeDialogs(d);
         SeleniumUtil.delay(400);
-        //boolean allNewInPage =
         traversePostsListInCurrentPage(d, post, category, region, pageCount, out);
         try {
             SeleniumUtil.scrollDownPage(d);

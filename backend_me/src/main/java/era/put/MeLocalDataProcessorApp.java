@@ -31,14 +31,14 @@ public class MeLocalDataProcessorApp {
             return;
         }
 
-        //ImageFixes.updateImageDates(c, mongoConnection);
-        //ImageFixes.deleteChildImageFiles(mongoConnection.image);
-        ImageFixes.downloadMissingImages(mongoConnection.image);
-        //ImageFixes.buildImageSizeAndShaSumDescriptors(mongoConnection);
+        ImageFixes.updateImageDates(c, mongoConnection);
+        ImageFixes.deleteChildImageFiles(mongoConnection.image);
         if (INCLUDE_IO_INTENSIVE_TASKS) {
             ImageFixes.verifyAllImageObjectsInDatabaseHasCorrespondingImageFile(mongoConnection.image);
         }
-        //ImageFixes.removeDanglingImageFiles(mongoConnection.image);
+        ImageFixes.downloadMissingImages(mongoConnection.image);
+        ImageFixes.buildImageSizeAndShaSumDescriptors(mongoConnection);
+        ImageFixes.removeDanglingImageFiles(mongoConnection.image);
     }
 
     private static void completePostAndProfileDatabaseCollections() throws Exception {
@@ -64,7 +64,7 @@ public class MeLocalDataProcessorApp {
         completeImageDatabaseCollection(c);
 
         // 2. Execute fixes on posts and profiles
-        //completePostAndProfileDatabaseCollections();
+        completePostAndProfileDatabaseCollections();
 
         // 3. Modify images with empty borders, so comparison algorithms works better
         if (INCLUDE_IO_INTENSIVE_TASKS) {
@@ -72,8 +72,8 @@ public class MeLocalDataProcessorApp {
         }
 
         // 4. Process inter-profile similarity hints by shasum image descriptors
-        //ImageInfo.deleteExternalChildImages();
-        ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
+        ImageInfo.deleteExternalChildImages();
+        //ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
 
         // TODO: Compute / update Yolo object detection (including faces and tatoos)
 
@@ -84,9 +84,9 @@ public class MeLocalDataProcessorApp {
         // TODO: Add the similarity hints by face id image descriptors
 
         // 5. Build extended information
-        //ImageInterleaver.createP0References(System.out);
-        //PostInterleaver.linkPostsToProfiles(System.out);
-        //ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
+        ImageInterleaver.createP0References(System.out);
+        PostInterleaver.linkPostsToProfiles(System.out);
+        ProfileInfoInterleaver.createExtendedProfileInfo(new PrintStream("./log/userStats.csv"));
 
         // Closing application
         Date endDate = new Date();
@@ -99,6 +99,7 @@ public class MeLocalDataProcessorApp {
             mainSequence();
         } catch (Exception e) {
             logger.error(e);
+            e.printStackTrace();
         }
     }
 }

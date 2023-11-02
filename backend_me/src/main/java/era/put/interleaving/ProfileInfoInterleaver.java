@@ -4,8 +4,11 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.MongoCursorNotFoundException;
 import com.mongodb.MongoTimeoutException;
 import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoCollection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
+import java.util.List;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -77,35 +80,36 @@ public class ProfileInfoInterleaver {
         ArrayList<String> locationArray = new ArrayList<>();
         String lastLocation = null;
         String lastService = null;
-        for(Document p: c.post.find(filter).sort(new BasicDBObject("md", 1).append("t", 1))) {
-            lastPostDate = MongoUtil.getDateFromMdOrT(p);
+        for(Document postDocument: c.post.find(filter).sort(new BasicDBObject("md", 1).append("t", 1))) {
+            lastPostDate = MongoUtil.getDateFromMdOrT(postDocument);
             if (firstPostDate == null) {
                 firstPostDate = lastPostDate;
             }
-            postIdArray.add(p.getObjectId("_id"));
-            postUrlArray.add(p.getString("url"));
-            lastLocation = p.getString("c") + "/" + p.getString("r");
-            String l = p.getString("l");
+            postIdArray.add(postDocument.getObjectId("_id"));
+            postUrlArray.add(postDocument.getString("url"));
+            lastLocation = postDocument.getString("c") + "/" + postDocument.getString("r");
+            String l = postDocument.getString("l");
             if (l != null) {
                 lastLocation += "(" + l + ")";
             }
             locationArray.add(lastLocation);
-            lastService = p.getString("s");
+            lastService = postDocument.getString("s");
             numPosts++;
         }
 
         //
         int numImages = 0;
-        Document conditionA = new Document("u", profileDocument.getObjectId("_id"));
-        Document conditionB = new Document("x", true);
-        ArrayList<Document> set = new ArrayList<>();
-        set.add(conditionA);
-        set.add(conditionB);
-        filter = new Document("$and", set);
-        ArrayList<ObjectId> imageIdArray = new ArrayList<>();
-        for(Document i: c.image.find(filter)) {
-            imageIdArray.add(i.getObjectId("_id"));
+        Document childImageFilter = new Document("u", profileDocument.getObjectId("_id"));
+        ArrayList<ObjectId> childImageIds = new ArrayList<>();
+        for(Document i: c.image.find(childImageFilter)) {
+            childImageIds.add(i.getObjectId("_id"));
             numImages++;
+        }
+
+        TreeSet<ObjectId> relatedProfilesByReplicatedImages = new TreeSet<>();
+        List<ObjectId> parentImageIds = traverseChildImages(childImageIds, c.image, relatedProfilesByReplicatedImages);
+        if (relatedProfilesByReplicatedImages.contains(profileDocument.getObjectId("_id"))) {
+            relatedProfilesByReplicatedImages.remove(profileDocument.getObjectId("_id"));
         }
 
         //
@@ -117,10 +121,11 @@ public class ProfileInfoInterleaver {
             .append("numImages", numImages)
             .append("postIdArray", postIdArray)
             .append("postUrlArray", postUrlArray)
-            .append("imageIdArray", imageIdArray)
+            .append("imageIdArray", parentImageIds)
             .append("lastLocation", lastLocation)
             .append("locationArray", locationArray)
-            .append("lastService", lastService);
+            .append("lastService", lastService)
+            .append("relatedProfilesByReplicatedImages", relatedProfilesByReplicatedImages);
 
         //
         filter = new Document("_id", profileDocument.getObjectId("_id"));
@@ -134,5 +139,43 @@ public class ProfileInfoInterleaver {
 
         //
         out.println(profileDocument.getString("p") + ", " + numPosts + ", " + numImages);
+    }
+
+    /**
+    Given a set of child images, returns the set of parent images, so in the set there are no repeated content.
+    */
+    private static List<ObjectId> traverseChildImages(ArrayList<ObjectId> childImageIds, MongoCollection<Document> image, TreeSet<ObjectId> relatedProfilesByReplicatedImages) {
+        TreeSet<ObjectId> resolvedIds = new TreeSet<>();
+        for (ObjectId childImage: childImageIds) {
+            ObjectId finalParent = resolveImage(childImage, 0, image, relatedProfilesByReplicatedImages);
+            if (finalParent != null && !resolvedIds.contains(finalParent)) {
+                resolvedIds.add(finalParent);
+            }
+        }
+        return resolvedIds.stream().toList();
+    }
+
+    private static ObjectId resolveImage(ObjectId childImage, int depth, MongoCollection<Document> image, TreeSet<ObjectId> relatedProfilesByReplicatedImages) {
+        if (depth > 100) {
+            logger.warn("To many levels on image {}", childImage.toString());
+            return null;
+        }
+        Document filter = new Document("_id", childImage);
+        Document parent = image.find(filter).first();
+        if (parent == null) {
+            return null;
+        }
+        if (!relatedProfilesByReplicatedImages.contains(parent.getObjectId("_id"))) {
+            relatedProfilesByReplicatedImages.add(parent.getObjectId("_id"));
+        }
+        Object x = parent.get("x");
+        if ((x instanceof Boolean)) {
+            Boolean value = (Boolean)x;
+            if (value.booleanValue()) {
+                return childImage;
+            }
+        }
+        ObjectId referenceId = parent.getObjectId("x");
+        return resolveImage(referenceId, depth + 1, image, relatedProfilesByReplicatedImages);
     }
 }

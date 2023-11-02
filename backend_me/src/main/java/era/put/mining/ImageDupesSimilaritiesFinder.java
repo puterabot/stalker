@@ -38,7 +38,7 @@ public class ImageDupesSimilaritiesFinder {
         FindIterable<Document> imageIterable = mongoConnection.image.find(filter).projection(Projections.include("_id", "af.d"));
 
         try {
-            BufferedOutputStream writer = new BufferedOutputStream(new FileOutputStream("./data.raw"));
+            BufferedOutputStream writer = new BufferedOutputStream(new FileOutputStream("/tmp/data.raw"));
 
             imageIterable.forEach((Consumer<? super Document>) imageDocument -> {
                 Object descriptorObject = imageDocument.get("af");

@@ -1,5 +1,6 @@
 package era.put.building;
 
+import com.mongodb.BasicDBObject;
 import com.mongodb.client.MongoCollection;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
@@ -219,6 +220,9 @@ public class ImageAnalyser {
             // Check if file exists
             File fd = new File(filename);
             if (!fd.exists()) {
+                // Mark image to be re-downloaded
+                Document filter = new Document("_id", imageObject.getObjectId("_id"));
+                image.updateOne(filter, new Document("$unset", new BasicDBObject("d", false)));
                 return null;
             }
 

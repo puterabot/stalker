@@ -13,6 +13,7 @@ import era.put.building.ImageDownloader;
 import era.put.building.ImageFileAttributes;
 import era.put.building.RepeatedImageDetector;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -21,7 +22,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import javax.print.Doc;
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -95,6 +96,11 @@ public class ImageFixes {
             String filename = ImageDownloader.imageFilename(_id, System.out);
             File fd = new File(filename);
             if (fd.exists()) {
+                try {
+                    FileUtils.copyFile(fd, new File(filename + ".bak"));
+                } catch (IOException e) {
+                    logger.error("Can not copy {}", filename);
+                }
                 if (fd.delete()) {
                     logger.info("Deleted " + fd.getAbsolutePath());
                     deleteCounter.incrementAndGet();
@@ -191,7 +197,12 @@ public class ImageFixes {
         return cropped;
     }
 
-    private static void verifyImageInDatabaseHasACorrespondingCorrectImageFile(String _id, AtomicInteger totalImagesProcessed, AtomicInteger errorCount) {
+    private static void markImageToReDownload(String _id, MongoCollection<Document> imageCollection) {
+        Document filter = new Document("_id", new ObjectId(_id));
+        imageCollection.updateOne(filter, new Document("$unset", new BasicDBObject("d", false)));
+    }
+
+    private static void verifyImageInDatabaseHasACorrespondingCorrectImageFile(String _id, AtomicInteger totalImagesProcessed, AtomicInteger errorCount, MongoCollection<Document> imageCollection) {
         String imageFilename = ImageDownloader.imageFilename(_id, System.err);
         try {
             int n = totalImagesProcessed.getAndIncrement();
@@ -203,11 +214,16 @@ public class ImageFixes {
             if (!fd.exists()) {
                 logger.error("File does not exists: {}", imageFilename);
                 errorCount.incrementAndGet();
+                markImageToReDownload(_id, imageCollection);
                 return;
             }
             if (fd.length() == 0) {
                 logger.error("Empty file: {}", imageFilename);
+                if (!fd.delete()) {
+                    logger.error("Error deleting empty file {}", imageFilename);
+                }
                 errorCount.incrementAndGet();
+                markImageToReDownload(_id, imageCollection);
                 return;
             }
             RGBImage image = ImagePersistence.importRGB(fd);
@@ -240,13 +256,14 @@ public class ImageFixes {
 
         parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
             executorService.submit(() ->
-                verifyImageInDatabaseHasACorrespondingCorrectImageFile(parentImageObject.get("_id").toString(), totalImagesProcessed, errorCount)
+                verifyImageInDatabaseHasACorrespondingCorrectImageFile(parentImageObject.get("_id").toString(), totalImagesProcessed, errorCount, imageCollection)
             )
         );
 
         executorService.shutdown();
         try {
-            if (!executorService.awaitTermination(10, TimeUnit.MINUTES)) {
+            //executorService.wait();
+            if (!executorService.awaitTermination(2, TimeUnit.HOURS)) {
                 logger.error("Parent image comparator threads taking so long!");
             }
         } catch (InterruptedException e) {

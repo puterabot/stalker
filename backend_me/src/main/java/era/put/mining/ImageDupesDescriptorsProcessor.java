@@ -3,10 +3,14 @@ package era.put.mining;
 import com.mongodb.BasicDBObject;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
+import com.sleepycat.db.Database;
+import com.sleepycat.db.DatabaseConfig;
+import com.sleepycat.db.DatabaseType;
+import com.sleepycat.db.Environment;
+import com.sleepycat.db.EnvironmentConfig;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -37,7 +41,7 @@ import org.bson.types.ObjectId;
 public class ImageDupesDescriptorsProcessor {
     private static final Logger logger = LogManager.getLogger(ImageDupesDescriptorsProcessor.class);
     private static String ME_IMAGE_DOWNLOAD_PATH;
-    private static final int NUMBER_OF_DATABASE_IMPORTER_THREADS = 72;
+    private static final int NUMBER_OF_DATABASE_IMPORTER_THREADS = 1; //72;
     private static final int NUMBER_OF_FINDIMAGEDUPES_THREADS = 2;
 
     static {
@@ -112,7 +116,29 @@ public class ImageDupesDescriptorsProcessor {
         image.updateOne(filter, updateDocument);
     }
 
-    private static void processBerkeleyDatabase(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
+    private static void processBerkeleyDatabaseUsingAPI(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
+        try {
+            String folder = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes";
+            EnvironmentConfig environmentConfig = new EnvironmentConfig();
+            environmentConfig.setInitializeCache(false);
+            environmentConfig.setInitializeCDB(false);
+            environmentConfig.setTransactional(true);
+            environmentConfig.setAllowCreate(true);
+            environmentConfig.setReplicationInMemory(true);
+            environmentConfig.setCacheSize(1024 * 1024 * 512);
+            Environment env = new Environment(new File(folder), environmentConfig);
+
+            DatabaseConfig dbConfig = new DatabaseConfig();
+            dbConfig.setType(DatabaseType.BTREE);
+            Database catalogDb = env.openDatabase(null, berkeleyDatabaseFilename, null, dbConfig);
+            catalogDb.close();
+            env.close();
+        } catch (Exception e) {
+            logger.error(e);
+        }
+    }
+
+    private static void processBerkeleyDatabaseUsingDbDump(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
         try {
             String filename = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes/" + berkeleyDatabaseFilename;
             String command = "db_dump -d a " + filename;
@@ -139,9 +165,9 @@ public class ImageDupesDescriptorsProcessor {
             reader.close();
             process.waitFor();
             File dbFd = new File(filename);
-            //if (!dbFd.delete()) {
-            //    logger.error("Can not delete " + filename);
-            //}
+            if (!dbFd.delete()) {
+                logger.error("Can not delete " + filename);
+            }
         } catch (Exception e) {
             logger.error(e);
         }
@@ -278,7 +304,8 @@ public class ImageDupesDescriptorsProcessor {
         if (children != null) {
             for (String berkeleyDatabaseFilename : children) {
                 executorService.submit(() ->
-                    processBerkeleyDatabase(berkeleyDatabaseFilename, totalDatabasesProcessed, image)
+                    processBerkeleyDatabaseUsingAPI(berkeleyDatabaseFilename, totalDatabasesProcessed, image)
+                    //processBerkeleyDatabaseUsingDbDump(berkeleyDatabaseFilename, totalDatabasesProcessed, image)
                 );
             }
         }
