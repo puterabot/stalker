@@ -97,7 +97,7 @@ public class ImageFixes {
             File fd = new File(filename);
             if (fd.exists()) {
                 try {
-                    FileUtils.copyFile(fd, new File(filename + ".bak"));
+                    FileUtils.copyFile(fd, new File(filename + ".bakReferenceTo_" + parentId.toString()));
                 } catch (IOException e) {
                     logger.error("Can not copy {}", filename);
                 }
