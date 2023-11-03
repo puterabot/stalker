@@ -67,10 +67,6 @@ public class ImageInfo {
         conditions.add(new Document("a.shasum", attrPivot.getShasum()));
         Document filter = new Document("$and", conditions);
 
-        if (parentImageObject.get("_id").toString().equals("6542f2ac6837e93bedb375ee")) {
-            logger.warn("Special case");
-        }
-
         FindIterable<Document> imageIterable = image.find(filter)
             .projection(Projections.include("_id", "a", "u", "md"))
             .sort(new BasicDBObject("md", 1));
