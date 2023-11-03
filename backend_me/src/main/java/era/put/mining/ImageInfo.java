@@ -57,7 +57,6 @@ public class ImageInfo {
         if (profileIdPivot == null) {
             return;
         }
-        String imageIdPivot = ((ObjectId)parentImageObject.get("_id")).toString();
 
         // Build candidate set
         List<Document> conditions = new ArrayList<>();
@@ -70,13 +69,17 @@ public class ImageInfo {
             .projection(Projections.include("_id", "a", "u", "md"))
             .sort(new BasicDBObject("md", 1));
 
+        if (parentImageObject.getObjectId("_id").toString().equals("650f16e4b7b1e72a549ebe8c")) {
+            logger.warn("Special case");
+        }
+
         String basicDescriptor = attrPivot.getShasum() + "_" + attrPivot.getSize() + "_" + attrPivot.getDx() + "_" + attrPivot.getDy();
         TreeSet<String> group = groups.get(basicDescriptor);
         if (group == null) {
             group = new TreeSet<>();
             group.add(parentImageObject.get("_id").toString());
             groups.put(basicDescriptor, group);
-            group = groups.get(imageIdPivot);
+            group = groups.get(basicDescriptor);
         }
 
         for (Document currentImage: imageIterable) {
@@ -92,10 +95,10 @@ public class ImageInfo {
             }
 
             // 2. Add image to common descriptor group
-            if (profileIdPivot.compareTo(profileIdI) != 0) {
+            //if (profileIdPivot.compareTo(profileIdI) != 0) {
                 externalMatchCounter.incrementAndGet();
                 group.add(currentImage.get("_id").toString());
-            }
+            //}
         }
     }
 
@@ -226,26 +229,11 @@ public class ImageInfo {
         ConcurrentHashMap<String, TreeSet<String>> externalMatches; // imageId vs set of profileId :)
         externalMatches = new ConcurrentHashMap<>();
 
-        try {
-            FileWriter fileWriter = new FileWriter("/tmp/a", true);
-            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
-
-            parentImageIterable.forEach((Consumer<? super Document>)parentImageObject -> {
-                    String line = parentImageObject.get("a").toString() + "\n";
-                    try {bufferedWriter.write(line);} catch(IOException e){}
-
-                    executorService.submit(() ->
-                        detectDuplicatedImagesBetweenProfiles(
-                            mongoConnection.image, parentImageObject, externalMatches,
-                            totalImagesProcessed, externalMatchCounter)
-                    );
- 	            }
-            );
-
-            bufferedWriter.close();
-        } catch (Exception e) {
-            logger.error(e);
-        }
+        parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
+                executorService.submit(() ->
+                    detectDuplicatedImagesBetweenProfiles(
+                        mongoConnection.image, parentImageObject, externalMatches,
+                        totalImagesProcessed, externalMatchCounter)));
 
         executorService.shutdown();
         try {
