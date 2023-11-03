@@ -172,7 +172,7 @@ public class ProfileInfoInterleaver {
         if ((x instanceof Boolean)) {
             Boolean value = (Boolean)x;
             if (value.booleanValue()) {
-                return childImage;
+                return parent.getObjectId("_id");
             }
         }
         ObjectId referenceId = parent.getObjectId("x");

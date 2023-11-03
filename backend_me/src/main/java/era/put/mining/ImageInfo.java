@@ -68,11 +68,6 @@ public class ImageInfo {
         FindIterable<Document> imageIterable = image.find(filter)
             .projection(Projections.include("_id", "a", "u", "md"))
             .sort(new BasicDBObject("md", 1));
-
-        if (parentImageObject.getObjectId("_id").toString().equals("650f16e4b7b1e72a549ebe8c")) {
-            logger.warn("Special case");
-        }
-
         String basicDescriptor = attrPivot.getShasum() + "_" + attrPivot.getSize() + "_" + attrPivot.getDx() + "_" + attrPivot.getDy();
         TreeSet<String> group = groups.get(basicDescriptor);
         if (group == null) {
