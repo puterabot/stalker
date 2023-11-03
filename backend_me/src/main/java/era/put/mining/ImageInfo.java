@@ -26,7 +26,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import javax.print.Doc;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -138,7 +137,7 @@ public class ImageInfo {
                     String filename = ImageDownloader.imageFilename(id, System.err);
                     File fd = new File(filename);
 
-                    File bak = new File(filename + ".bakRepeatedOf_" + id);
+                    File bak = new File(filename + ".bakRepeatedChild");
                     try {
                         FileUtils.copyFile(fd, bak);
                     } catch (IOException e) {

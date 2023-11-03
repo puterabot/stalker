@@ -6,6 +6,7 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Projections;
 import era.put.base.Configuration;
 import era.put.base.MongoConnection;
+import era.put.base.MongoUtil;
 import era.put.base.Util;
 import era.put.building.FileToolReport;
 import era.put.building.ImageAnalyser;
@@ -15,6 +16,8 @@ import era.put.building.RepeatedImageDetector;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -38,7 +41,7 @@ public class ImageFixes {
     private static final int NUMBER_OF_DELETER_THREADS = 72;
     private static final int NUMBER_OF_IMAGE_DESCRIPTOR_ANALYZER_THREADS = 72;
     private static final int NUMBER_OF_IMAGE_CHECKER_THREADS = 72;
-    private static final int MINIMUM_IMAGE_DIMENSION = 32;
+    private static final int MINIMUM_IMAGE_DIMENSION = 256;
 
     private static String ME_IMAGE_DOWNLOAD_PATH;
 
@@ -202,7 +205,8 @@ public class ImageFixes {
         imageCollection.updateOne(filter, new Document("$unset", new BasicDBObject("d", false)));
     }
 
-    private static void verifyImageInDatabaseHasACorrespondingCorrectImageFile(String _id, AtomicInteger totalImagesProcessed, AtomicInteger errorCount, MongoCollection<Document> imageCollection) {
+    private static void verifyImageInDatabaseHasACorrespondingCorrectImageFile(Document imageDocument, AtomicInteger totalImagesProcessed, AtomicInteger errorCount, MongoCollection<Document> imageCollection) {
+        String _id = imageDocument.getObjectId("_id").toString();
         String imageFilename = ImageDownloader.imageFilename(_id, System.err);
         try {
             int n = totalImagesProcessed.getAndIncrement();
@@ -210,6 +214,7 @@ public class ImageFixes {
             if (n % 10000 == 0) {
                 logger.info("Images verified to have correct image file: {}, errors: {}", n, ne);
             }
+
             File fd = new File(imageFilename);
             if (!fd.exists()) {
                 logger.error("File does not exists: {}", imageFilename);
@@ -230,7 +235,20 @@ public class ImageFixes {
             if (image.getXSize() < MINIMUM_IMAGE_DIMENSION || image.getYSize() < MINIMUM_IMAGE_DIMENSION) {
                 logger.error("So small image ({} x {}): {}", image.getXSize(), image.getYSize(), imageFilename);
                 errorCount.incrementAndGet();
-                return;
+                MongoUtil.deleteImage(_id);
+            }
+            ImageFileAttributes imageAttributes = MongoUtil.getImageAttributes(imageDocument);
+            if (imageAttributes.getDx() != image.getXSize() ||
+                imageAttributes.getDy() != image.getYSize()) {
+                logger.warn("Correcting attributes for image id {}", imageDocument.getObjectId("_id"));
+                Document filter = new Document("_id", imageDocument.getObjectId("_id"));
+                Document attr = new Document("dx", image.getXSize())
+                    .append("dy", image.getYSize())
+                    .append("shasum", imageAttributes.getShasum())
+                    .append("size", imageAttributes.getSize());
+                Document data = new Document("$set", new BasicDBObject("a", attr));
+
+                imageCollection.updateOne(filter, data);
             }
         } catch (Exception e) {
             logger.error("Error processing: {}", imageFilename);
@@ -241,10 +259,12 @@ public class ImageFixes {
 
     public static void verifyAllImageObjectsInDatabaseHasCorrespondingImageFile(MongoCollection<Document> imageCollection) {
         logger.info("= VERIFYING THAT ALL IMAGES REFERENCED ON DATABASE HAS A CORRECT IMAGE FILE ==========");
-        Document filter = new Document("md", new BasicDBObject("$exists", true))
-                .append("x", true)
-                .append("a", new BasicDBObject("$exists", true))
-                .append("u", new BasicDBObject("$exists", true));
+        List<Document> conditions = new ArrayList<>();
+        conditions.add(new Document("md", new BasicDBObject("$exists", true)));
+        conditions.add(new Document("x", true));
+        conditions.add(new Document("a", new BasicDBObject("$exists", true)));
+        conditions.add(new Document("u", new BasicDBObject("$exists", true)));
+        Document filter = new Document("$and", conditions);
         FindIterable<Document> parentImageIterable = imageCollection.find(filter)
                 .projection(Projections.include("_id", "a", "u", "md"))
                 .sort(new BasicDBObject("md", 1));
@@ -256,7 +276,7 @@ public class ImageFixes {
 
         parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
             executorService.submit(() ->
-                verifyImageInDatabaseHasACorrespondingCorrectImageFile(parentImageObject.get("_id").toString(), totalImagesProcessed, errorCount, imageCollection)
+                verifyImageInDatabaseHasACorrespondingCorrectImageFile(parentImageObject, totalImagesProcessed, errorCount, imageCollection)
             )
         );
 
@@ -308,8 +328,6 @@ public class ImageFixes {
     }
     public static void removeDanglingImageFiles(MongoCollection<Document> imageCollection) {
         try {
-            File imagesFolder = new File(ME_IMAGE_DOWNLOAD_PATH);
-
             ThreadFactory threadFactory = Util.buildThreadFactory("ImageFileValidator[%03d]");
             ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_IMAGE_CHECKER_THREADS, threadFactory);
             AtomicInteger totalImagesProcessed = new AtomicInteger(0);
@@ -321,7 +339,6 @@ public class ImageFixes {
                     verifyDirectoryImageFilesHasRecordsInDatabase(
                         imageCollection, folderPath, totalImagesProcessed, errorCount)
                 );
-
             }
             executorService.shutdown();
             try {

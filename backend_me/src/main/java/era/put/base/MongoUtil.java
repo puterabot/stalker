@@ -3,15 +3,21 @@ package era.put.base;
 import com.mongodb.BasicDBObject;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import era.put.building.ImageDownloader;
 import era.put.building.ImageFileAttributes;
+import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.Properties;
+import java.util.function.Consumer;
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -126,5 +132,47 @@ public class MongoUtil {
             p.getDate("t");
         }
         return firstPostDate;
+    }
+
+    private static final MongoConnection mongoConnection = connectWithMongoDatabase();
+    public static void deleteImage(String id) {
+        Document filter = new Document("_id", new ObjectId(id));
+        Document imageDocument = mongoConnection.image.find(filter).first();
+        if (imageDocument == null) {
+            return;
+        }
+
+        // Delete all references
+        filter = new Document("x", new ObjectId(id));
+        FindIterable<Document> childImages = mongoConnection.image.find(filter);
+        childImages.forEach((Consumer<? super Document>) child ->
+                deleteImage(child.getObjectId("_id").toString()));
+
+        Object xObject = imageDocument.get("x");
+        if (xObject instanceof Boolean) {
+            Boolean x = (Boolean)xObject;
+            if (x) {
+                // Remove image file
+                String filename = ImageDownloader.imageFilename(id, System.out);
+                File fd = new File(filename);
+                File backup = new File(filename + ".bakDeleted");
+                try {
+                    FileUtils.copyFile(fd, backup);
+                } catch (IOException e) {
+                    logger.error("Can not backup file to {}", backup.getAbsoluteFile());
+                }
+                if (!fd.delete()) {
+                    logger.error("Can not delete file {}", filename);
+                }
+            }
+        }
+
+        // Delete references from profileInfo
+        ObjectId profileId = imageDocument.getObjectId("u");
+        filter = new Document("_id", profileId);
+        mongoConnection.profileInfo.deleteOne(filter);
+
+        // Delete image object
+        mongoConnection.image.deleteOne(new Document("_id", imageDocument.getObjectId("_id")));
     }
 }
