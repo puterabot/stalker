@@ -7,10 +7,13 @@ import com.mongodb.client.model.Projections;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
-import era.put.building.ImageAnalyser;
 import era.put.building.ImageDownloader;
 import era.put.building.ImageFileAttributes;
 import java.io.File;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -24,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import javax.print.Doc;
+import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bson.Document;
@@ -49,6 +53,7 @@ public class ImageInfo {
         if (attrPivot == null) {
             return;
         }
+
         ObjectId profileIdPivot = MongoUtil.getImageParentProfileId(parentImageObject);
         if (profileIdPivot == null) {
             return;
@@ -56,9 +61,16 @@ public class ImageInfo {
         String imageIdPivot = ((ObjectId)parentImageObject.get("_id")).toString();
 
         // Build candidate set
-        Document filter = new Document("x", true)
-            .append("_id", new BasicDBObject("$ne", parentImageObject.get("_id")))
-            .append("a.shasum", attrPivot.getShasum());
+        List<Document> conditions = new ArrayList<>();
+        conditions.add(new Document("x", true));
+        conditions.add(new Document("_id", new BasicDBObject("$ne", parentImageObject.get("_id"))));
+        conditions.add(new Document("a.shasum", attrPivot.getShasum()));
+        Document filter = new Document("$and", conditions);
+
+        if (parentImageObject.get("_id").toString().equals("6542f2ac6837e93bedb375ee")) {
+            logger.warn("Special case");
+        }
+
         FindIterable<Document> imageIterable = image.find(filter)
             .projection(Projections.include("_id", "a", "u", "md"))
             .sort(new BasicDBObject("md", 1));
@@ -103,7 +115,6 @@ public class ImageInfo {
             }
 
             String olderImage = null;
-            Date olderDate = null;
             HashMap<String, Document> imagesToRemove = new HashMap<>();
             for (String imageId: imageSetWithCommonDescriptor) {
                 FindIterable<Document> imageIterable = imageCollection.find(new Document("_id", new ObjectId(imageId)));
@@ -113,10 +124,8 @@ public class ImageInfo {
                         Document imageDocument = imageIterable.cursor().next();
                         imagesToRemove.put(imageId, imageDocument);
                         Date currentImageDate = (Date) imageDocument.get("md");
-                        if (olderImage == null ||
-                                currentImageDate.before(currentImageDate)) {
+                        if (olderImage == null || currentImageDate.before(currentImageDate)) {
                             olderImage = imageId;
-                            olderDate = currentImageDate;
                         }
                     }
                 } catch (Exception e) {
@@ -132,6 +141,16 @@ public class ImageInfo {
                     imageCollection.updateOne(filter, query);
                     String filename = ImageDownloader.imageFilename(id, System.err);
                     File fd = new File(filename);
+
+                    File bak = new File(filename + ".bakRepeatedOf_" + id);
+                    try {
+                        FileUtils.copyFile(fd, bak);
+                    } catch (IOException e) {
+                        logger.error("Can not copy backup {}", bak.getAbsoluteFile());
+                    }
+                    if (!fd.exists()) {
+                        logger.error("Trying to delete non existent file {}", filename);
+                    }
                     if (!fd.delete()) {
                         logger.error("Can not delete file {}", filename);
                     }
@@ -161,7 +180,7 @@ public class ImageInfo {
         logger.info("Maximum image set size (images with most usages are re-used this times): {}", max);
 
         // Report distribution by sizes
-        int[] histogram = new int[max + 1];
+        int[] histogram = new int[max + 2]; // Should be just + 1, but exceptions were present
         for (int i = 0; i <= max; i++) {
             histogram[i] = 0;
         }
@@ -169,7 +188,11 @@ public class ImageInfo {
         for (String descriptor : commonImageGroups.keySet()) {
             TreeSet<String> imageIdSetWithCommonDescriptor = commonImageGroups.get(descriptor);
             int n = imageIdSetWithCommonDescriptor.size();
-            histogram[n]++;
+	    if (n > 0 && n < histogram.length) {
+                histogram[n]++;
+	    } else {
+		logger.error("imageIdSetWithCommonDescriptor with invalid {} size!", n);
+	    }
         }
 
         for (int i = 0; i <= max; i++) {
@@ -191,10 +214,12 @@ public class ImageInfo {
         }
 
         logger.info("= DETECTING REPEATED IMAGES ACROSS PROFILES ==========================================");
-        Document filter = new Document("md", new BasicDBObject("$exists", true))
-                .append("x", true)
-                .append("a", new BasicDBObject("$exists", true))
-                .append("u", new BasicDBObject("$exists", true));
+        List<Document> conditions = new ArrayList<>();
+        conditions.add(new Document("md", new BasicDBObject("$exists", true)));
+        conditions.add(new Document("x", true));
+        conditions.add(new Document("a", new BasicDBObject("$exists", true)));
+        conditions.add(new Document("u", new BasicDBObject("$exists", true)));
+        Document filter = new Document("$and", conditions);
         FindIterable<Document> parentImageIterable = mongoConnection.image.find(filter)
                 .projection(Projections.include("_id", "a", "u", "md"))
                 .sort(new BasicDBObject("md", 1));
@@ -206,13 +231,26 @@ public class ImageInfo {
         ConcurrentHashMap<String, TreeSet<String>> externalMatches; // imageId vs set of profileId :)
         externalMatches = new ConcurrentHashMap<>();
 
-        parentImageIterable.forEach((Consumer<? super Document>)parentImageObject ->
-            executorService.submit(() ->
-                detectDuplicatedImagesBetweenProfiles(
-                    mongoConnection.image, parentImageObject, externalMatches,
-                    totalImagesProcessed, externalMatchCounter)
-            )
-        );
+        try {
+            FileWriter fileWriter = new FileWriter("/tmp/a", true);
+            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+
+            parentImageIterable.forEach((Consumer<? super Document>)parentImageObject -> {
+                    String line = parentImageObject.get("a").toString() + "\n";
+                    try {bufferedWriter.write(line);} catch(IOException e){}
+
+                    executorService.submit(() ->
+                        detectDuplicatedImagesBetweenProfiles(
+                            mongoConnection.image, parentImageObject, externalMatches,
+                            totalImagesProcessed, externalMatchCounter)
+                    );
+ 	            }
+            );
+
+            bufferedWriter.close();
+        } catch (Exception e) {
+            logger.error(e);
+        }
 
         executorService.shutdown();
         try {

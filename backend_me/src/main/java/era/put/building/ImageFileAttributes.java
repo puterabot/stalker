@@ -16,13 +16,19 @@ public class ImageFileAttributes implements Comparable<ImageFileAttributes> {
     private int dx;
     private int dy;
 
+    public ImageFileAttributes(long size, String shasum, int dx, int dy) {
+        this.size = size;
+        this.shasum = shasum;
+        this.dx = dx;
+        this.dy = dy;
+    }
+
     public static ImageFileAttributes fromDocument(Document source) {
-        return ImageFileAttributes.builder()
-            .shasum(source.getString("shasum"))
-            .size(source.getLong("size"))
-            .dy(source.getInteger("dx"))
-            .dy(source.getInteger("dy"))
-            .build();
+        return new ImageFileAttributes(
+            source.getLong("size"),
+            source.getString("shasum"),
+            source.getInteger("dx"),
+            source.getInteger("dy"));
     }
 
     @Override
