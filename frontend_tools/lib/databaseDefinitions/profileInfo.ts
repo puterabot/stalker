@@ -24,18 +24,6 @@ if (Meteor.isServer) {
         //const filter = { $expr: { $gt: [{ $size: "$imageIdArray" }, 2000] } };
         return globalProfileInfo.find(filter);
     });
-    Meteor.publish('profileInfo_maxImages', function () {
-        const filter = {$and: [
-            {firstPostDate: {$ne: null}},
-            //{lastLocation: /bogot/i},
-            {lastService: {$not: /gay/}},
-            {lastService: {$not: /gigolo/}},
-            {lastService: {$not: /travesti/}},
-            {lastService: {$ne: "servicios-virtuales"}},
-            {numImages: {$gte: 1000}}
-        ]};
-        return globalProfileInfo.find(filter);
-    });
     globalProfileInfo.allow({
         insert: function (userId, doc) {
             return true;
