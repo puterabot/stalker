@@ -1,3 +1,6 @@
+import { Meteor } from 'meteor/meteor';
+import { Mongo } from 'meteor/mongo';
+
 globalProfileInfo = new Mongo.Collection('profileInfo');
 
 if (Meteor.isServer) {

@@ -1,4 +1,7 @@
 import { Meteor } from 'meteor/meteor';
+import { Router } from 'meteor/iron:router';
+import { ReactiveVar } from 'meteor/reactive-var';
+import { Template } from 'meteor/templating';
 
 Router.route('/validateIncomingProfiles', {
     template: 'validateIncomingProfilesTemplate',
@@ -11,7 +14,7 @@ const selectedProfileIndex = new ReactiveVar(0);
 const selectedProfile = new ReactiveVar(null);
 const profileDataset = new ReactiveVar(null);
 const selectedImage = new ReactiveVar(null);
-let profileInfoArray = null;
+let profileInfoArray: Array<any> | null = null;
 
 const compareByFirstPostDate = function (a, b) {
     return b.firstPostDate - a.firstPostDate;
@@ -42,6 +45,9 @@ const computeImagePreviewSizes = function (arr) {
 Template.validateIncomingProfilesTemplate.helpers({
     profileInfo: function () {
         profileInfoArray = globalProfileInfo.find().fetch();
+        if (!profileInfoArray) {
+            return [];
+        }
         profileInfoArray.sort(compareByFirstPostDate);
         if (profileInfoArray && profileInfoArray.length > 0 &&
             selectedProfile.get()) {
@@ -99,6 +105,9 @@ Template.validateIncomingProfilesTemplate.helpers({
 });
 
 const goNext = function () {
+    if (!profileInfoArray) {
+        return null;
+    }
     let v = selectedProfileIndex.get();
     v++;
     if (v >= profileInfoArray.length) {
@@ -109,6 +118,9 @@ const goNext = function () {
 }
 
 const goPrev = function () {
+    if (!profileInfoArray) {
+        return null;
+    }
     let v = selectedProfileIndex.get();
     v--;
     if (v < 0) {
@@ -147,16 +159,14 @@ Template.validateIncomingProfilesTemplate.onRendered(function () {
         const container = document.getElementsByClassName('rightcol')[0];
         container.style.width = (window.innerWidth - 640 - 40) + 'px';
         container.style.height = '100vh';
-        selectedProfile.set(profileInfoArray[0]);
+        if (profileInfoArray) {
+            selectedProfile.set(profileInfoArray[0]);
+        }
     }, 2000);
-
 });
 
 Template.validateIncomingProfilesTemplate.events({
     "mouseenter .previewImage": function (e) {
-        selectImageFromId(e.target.id);
-    },
-    "click .previewImage": function (e) {
         selectImageFromId(e.target.id);
     },
     "click .previewImage": function (e) {
@@ -168,6 +178,4 @@ Template.validateIncomingProfilesTemplate.events({
     "click #prevButton": function (e) {
         goPrev();
     }
-
 });
-
