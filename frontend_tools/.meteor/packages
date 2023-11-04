@@ -16,3 +16,4 @@ shell-server
 dynamic-import
 underscore@1.0.13
 jquery
+typescript
