@@ -65,7 +65,7 @@ public class ProfileInfoInterleaver {
 
     private static void buildExtendedInfoProfile(PrintStream out, Document profileDocument, MongoConnection c, AtomicInteger counter) {
         //
-        int numberOfProfilesProcessed = counter.incrementAndGet();
+        int numberOfProfilesProcessed = counter.getAndIncrement();
         if (numberOfProfilesProcessed % 10000 == 0) {
             logger.info("Profiles processed: {}", numberOfProfilesProcessed);
         }
@@ -106,10 +106,10 @@ public class ProfileInfoInterleaver {
             numImages++;
         }
 
-        TreeSet<ObjectId> relatedProfilesByReplicatedImages = new TreeSet<>();
-        List<ObjectId> parentImageIds = traverseChildImages(childImageIds, c.image, relatedProfilesByReplicatedImages);
-        if (relatedProfilesByReplicatedImages.contains(profileDocument.getObjectId("_id"))) {
-            relatedProfilesByReplicatedImages.remove(profileDocument.getObjectId("_id"));
+        TreeSet<String> relatedProfilesByReplicatedImages = new TreeSet<>();
+        List<ObjectId> parentImageIds = traverseChildImages(childImageIds, c.image, c.profile, relatedProfilesByReplicatedImages);
+        if (relatedProfilesByReplicatedImages.contains(profileDocument.getString("p"))) {
+            relatedProfilesByReplicatedImages.remove(profileDocument.getString("p"));
         }
 
         //
@@ -125,7 +125,7 @@ public class ProfileInfoInterleaver {
             .append("lastLocation", lastLocation)
             .append("locationArray", locationArray)
             .append("lastService", lastService)
-            .append("relatedProfilesByReplicatedImages", relatedProfilesByReplicatedImages);
+            .append("relatedProfilesByReplicatedImages", relatedProfilesByReplicatedImages.stream().toList());
 
         //
         filter = new Document("_id", profileDocument.getObjectId("_id"));
@@ -144,10 +144,14 @@ public class ProfileInfoInterleaver {
     /**
     Given a set of child images, returns the set of parent images, so in the set there are no repeated content.
     */
-    private static List<ObjectId> traverseChildImages(ArrayList<ObjectId> childImageIds, MongoCollection<Document> image, TreeSet<ObjectId> relatedProfilesByReplicatedImages) {
+    private static List<ObjectId> traverseChildImages(
+        ArrayList<ObjectId> childImageIds,
+        MongoCollection<Document> imageCollection,
+        MongoCollection<Document> profileInfoCollection,
+        TreeSet<String> relatedProfilesByReplicatedImages) {
         TreeSet<ObjectId> resolvedIds = new TreeSet<>();
         for (ObjectId childImage: childImageIds) {
-            ObjectId finalParent = resolveImage(childImage, 0, image, relatedProfilesByReplicatedImages);
+            ObjectId finalParent = resolveImage(childImage, 0, imageCollection, profileInfoCollection, relatedProfilesByReplicatedImages);
             if (finalParent != null && !resolvedIds.contains(finalParent)) {
                 resolvedIds.add(finalParent);
             }
@@ -155,27 +159,37 @@ public class ProfileInfoInterleaver {
         return resolvedIds.stream().toList();
     }
 
-    private static ObjectId resolveImage(ObjectId childImage, int depth, MongoCollection<Document> image, TreeSet<ObjectId> relatedProfilesByReplicatedImages) {
+    private static ObjectId resolveImage(
+        ObjectId childImage,
+        int depth,
+        MongoCollection<Document> imageCollection,
+        MongoCollection<Document> profileCollection,
+        TreeSet<String> relatedProfilesByReplicatedImages) {
         if (depth > 100) {
             logger.warn("To many levels on image {}", childImage.toString());
             return null;
         }
         Document filter = new Document("_id", childImage);
-        Document parent = image.find(filter).first();
-        if (parent == null) {
+        Document parentImage = imageCollection.find(filter).first();
+        if (parentImage == null) {
             return null;
         }
-        if (!relatedProfilesByReplicatedImages.contains(parent.getObjectId("_id"))) {
-            relatedProfilesByReplicatedImages.add(parent.getObjectId("_id"));
+
+        ObjectId parentProfileId = parentImage.getObjectId("u");
+        filter = new Document("_id", parentProfileId);
+        Document parentProfileDocument = profileCollection.find(filter).first();
+        String phone = parentProfileDocument.getString("p");
+        if (!relatedProfilesByReplicatedImages.contains(phone)) {
+            relatedProfilesByReplicatedImages.add(phone);
         }
-        Object x = parent.get("x");
+        Object x = parentImage.get("x");
         if ((x instanceof Boolean)) {
             Boolean value = (Boolean)x;
             if (value.booleanValue()) {
-                return parent.getObjectId("_id");
+                return parentImage.getObjectId("_id");
             }
         }
-        ObjectId referenceId = parent.getObjectId("x");
-        return resolveImage(referenceId, depth + 1, image, relatedProfilesByReplicatedImages);
+        ObjectId referenceId = parentImage.getObjectId("x");
+        return resolveImage(referenceId, depth + 1, imageCollection, profileCollection, relatedProfilesByReplicatedImages);
     }
 }
