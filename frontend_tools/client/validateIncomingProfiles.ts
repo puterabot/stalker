@@ -2,6 +2,7 @@ import { Meteor } from 'meteor/meteor';
 import { Router } from 'meteor/iron:router';
 import { ReactiveVar } from 'meteor/reactive-var';
 import { Template } from 'meteor/templating';
+import { HTMLElement } from 'dom';
 
 Router.route('/validateIncomingProfiles', {
     template: 'validateIncomingProfilesTemplate',
@@ -156,7 +157,7 @@ Template.validateIncomingProfilesTemplate.onRendered(function () {
     const e = document.getElementsByTagName('body')[0];
     e.onkeydown = handleKeyDownCallback;
     Meteor.setTimeout(function () {
-        const container = document.getElementsByClassName('rightcol')[0];
+        const container: HTMLElement = document.getElementsByClassName('rightcol')[0];
         container.style.width = (window.innerWidth - 640 - 40) + 'px';
         container.style.height = '100vh';
         if (profileInfoArray) {

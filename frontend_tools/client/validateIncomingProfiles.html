@@ -9,23 +9,40 @@
             </p>
         </span>
         <span class="rightcol">
-            <h1>Profile: <a
-                    href="https://co.mileroticos.com/{{selectedProfileInfo.lastService}}/{{selectedProfileInfo.p}}">{{selectedProfileInfo.p}}</a>
-              ({{selectedProfileIndex}}/{{profileInfo.length}})</h1>
-	    <p>
-	      Images: {{profileDataset.images.length}}
-	    </p>
-            <div id="previewsArea">
-                {{#if profileDataset.images.length}}
-                    {{#each profileDataset.images}}
-                        <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
-                    {{/each}}
-                {{else}}
-                    Profile has no images! check database.
-                {{/if}}
+            <div class="profileArea">
+                <h1>
+                    Profile:
+                    <a href="https://co.mileroticos.com/{{selectedProfileInfo.lastService}}/{{selectedProfileInfo.p}}">
+                        {{selectedProfileInfo.p}}
+                    </a>
+                    ({{selectedProfileIndex}}/{{profileInfo.length}})
+                </h1>
+                <p>
+                    Images: {{profileDataset.images.length}}
+                </p>
+                <div id="previewsArea">
+                    {{#if profileDataset.images.length}}
+                        {{#each profileDataset.images}}
+                            <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
+                        {{/each}}
+                    {{else}}
+                        Profile has no images! check database.
+                    {{/if}}
+                </div>
             </div>
-            <button id="prevButton">PREV</button>
-            <button id="nextButton">NEXT</button>
+
+            {{#if profileDataset.relatedProfiles.length}}
+                <h1>Related profiles: {{profileDataset.relatedProfiles.length}}</h1>
+                <ul>
+                    {{#each profileDataset.relatedProfiles}}
+		        {{> showProfileImagesTemplate p=p}}
+                    {{/each}}
+                </ul>
+            {{else}}
+                There are no related profiles.
+            {{/if}}
         </span>
+        <button id="prevButton">PREV</button>
+        <button id="nextButton">NEXT</button>
     </div>
 </template>
