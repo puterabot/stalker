@@ -48,6 +48,13 @@ h1 {
 .previewImage {
     vertical-align: top;
     margin: 5px;
+    border-style: solid;
+    border-width: 2px;
+    border-color: #ffffff;
+}
+
+.clickedImage {
+    border-color: #000000;
 }
 
 #nextButton {

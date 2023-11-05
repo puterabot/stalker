@@ -23,7 +23,7 @@
                 <div id="previewsArea">
                     {{#if profileDataset.images.length}}
                         {{#each profileDataset.images}}
-                            <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
+                            <img id="{{_id._str}}" class={{imageClass _id._str}} width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
                         {{/each}}
                     {{else}}
                         Profile has no images! check database.
@@ -40,7 +40,7 @@
                 There are no related profiles.
             {{/if}}
         </span>
-        <button id="prevButton">PREV</button>
-        <button id="nextButton">NEXT</button>
+        <button id="prevButton"><h1>PREV</h1></button>
+        <button id="nextButton"><h1>NEXT</h1></button>
     </div>
 </template>

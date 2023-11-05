@@ -22,6 +22,7 @@ if (Meteor.isServer) {
         ]};
         
         //const filter = { $expr: { $gt: [{ $size: "$imageIdArray" }, 2000] } };
+        //const filter = { $expr: { $eq: [{ $size: "$relatedProfilesByReplicatedImages" }, 37] } };
         return globalProfileInfo.find(filter);
     });
     globalProfileInfo.allow({

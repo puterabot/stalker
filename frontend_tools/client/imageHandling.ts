@@ -1,4 +1,5 @@
 selectedImage = new ReactiveVar(null);
+clickedImage = new ReactiveVar(null);
 
 computeImagePreviewSizes = function (arr) {
     let targetSize = 64;

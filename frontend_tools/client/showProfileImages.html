@@ -11,9 +11,9 @@
                 Images: {{profileData.images.length}}
             </p>
             {{#if profileData.images.length}}
-                <div id="{{profileData.p}}">
+                <div class="previewsArea" id="{{profileData.p}}">
                     {{#each profileData.images}}
-                        <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
+                        <img id="{{_id._str}}" class={{imageClass _id._str}} width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
                     {{/each}}
                 </div>
             {{else}}

@@ -25,6 +25,12 @@ const compareByMd = function (a, b) {
 }
 
 Template.validateIncomingProfilesTemplate.helpers({
+    imageClass: function(_id) {
+        if (_id === clickedImage.get()) {
+	    return 'previewImage clickedImage';
+	}
+        return 'previewImage';
+    },
     profileInfo: function () {
         profileInfoArray = globalProfileInfo.find().fetch();
         if (!profileInfoArray) {
@@ -138,18 +144,36 @@ Template.validateIncomingProfilesTemplate.onRendered(function () {
 
 Template.validateIncomingProfilesTemplate.events({
     "mouseenter .previewImage": function (e) {
+        if (clickedImage.get()) {
+  	    return;
+	}
         const profile = profileDataset.get();
         selectImageFromId(profile, e.target.id);
     },
     "click .previewImage": function (e) {
+        e.preventDefault();
+        clickedImage.set(e.target.id);
         // Used on mobile where there is no mouse hover / enter / exit
         const profile = profileDataset.get();
         selectImageFromId(profile, e.target.id);
     },
-    "click #nextButton": function (e) {
+    "click #nextButton": function() {
+        clickedImage.set(null);
         goNext();
     },
-    "click #prevButton": function (e) {
+    "click #prevButton": function() {
+        clickedImage.set(null);
         goPrev();
+    },
+    "click.previewsArea": function(e) {
+        if ( e.currentTarget.id === 'previewsArea' ) {
+	    clickedImage.set(null);
+	}
+    },
+    "click h1": function(e) {
+        clickedImage.set(null);
+    },
+    "click p": function(e) {
+        clickedImage.set(null);
     }
 });
