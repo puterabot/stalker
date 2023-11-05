@@ -1,5 +1,26 @@
 <template name="showProfileImagesTemplate">
-    <li>
-        {{profileData}}
-    </li>
+    <div class="profileArea">
+        {{#if profileData}}
+            <h1>
+                Profile:
+                <a href="https://co.mileroticos.com/{{selectedProfileInfo.lastService}}/{{profileData.p}}">
+                    {{profileData.p}}
+                </a>
+            </h1>
+            <p>
+                Images: {{profileData.images.length}}
+            </p>
+            <div id="previewsArea">
+                {{#if profileData.images.length}}
+                    {{#each profileData.images}}
+                        <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
+                    {{/each}}
+                {{else}}
+                    Profile has no images! check database.
+                {{/if}}
+            </div>
+        {{else}}
+            Profile data loading...
+        {{/if}}
+    </div>
 </template>

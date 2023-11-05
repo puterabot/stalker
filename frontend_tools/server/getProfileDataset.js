@@ -45,16 +45,13 @@ const profileDataset = function(_id, p) {
 
 Meteor.methods({
     getProfileDatasetStr: function(phone) {
-	console.log('Profile for phone: ', phone);
+	//console.log('Profile for phone: ', phone);
         const profile = global['globalProfileInfo'];
         const p = profile.findOne({p: phone});
-	console.log('---------------------------------------------------------------------------');
-	console.log('Profile: ', p);
-	console.log('---------------------------------------------------------------------------');
         return profileDataset(p._id, p);
     },
     getProfileDataset: function (_id) {
-        console.log('Getting data for profile', _id);
+        //console.log('Getting data for profile', _id);
         const profile = global['globalProfileInfo'];
         const p = profile.findOne({ _id: _id });
         return profileDataset(_id, p);

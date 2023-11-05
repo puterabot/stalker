@@ -33,11 +33,9 @@
 
             {{#if profileDataset.relatedProfiles.length}}
                 <h1>Related profiles: {{profileDataset.relatedProfiles.length}}</h1>
-                <ul>
-                    {{#each profileDataset.relatedProfiles}}
-		        {{> showProfileImagesTemplate p=p}}
-                    {{/each}}
-                </ul>
+                {{#each profileDataset.relatedProfiles}}
+                    {{> showProfileImagesTemplate p=p}}
+                {{/each}}
             {{else}}
                 There are no related profiles.
             {{/if}}
