@@ -14,7 +14,6 @@ Router.route('/validateIncomingProfiles', {
 const selectedProfileIndex = new ReactiveVar(0);
 const selectedProfile = new ReactiveVar(null);
 const profileDataset = new ReactiveVar(null);
-const selectedImage = new ReactiveVar(null);
 let profileInfoArray: Array<any> | null = null;
 
 const compareByFirstPostDate = function (a, b) {
@@ -124,17 +123,6 @@ const handleKeyDownCallback = function (e) {
     }
 }
 
-const selectImageFromId = function (id) {
-    const p = profileDataset.get();
-    for (let i = 0; i < p.images.length; i++) {
-        const id_i = p.images[i]._id._str;
-        if (id_i === id) {
-            selectedImage.set(p.images[i]);
-            return;
-        }
-    }
-}
-
 Template.validateIncomingProfilesTemplate.onRendered(function () {
     const e = document.getElementsByTagName('body')[0];
     e.onkeydown = handleKeyDownCallback;
@@ -145,15 +133,18 @@ Template.validateIncomingProfilesTemplate.onRendered(function () {
         if (profileInfoArray) {
             selectedProfile.set(profileInfoArray[0]);
         }
-    }, 2000);
+    }, 400);
 });
 
 Template.validateIncomingProfilesTemplate.events({
     "mouseenter .previewImage": function (e) {
-        selectImageFromId(e.target.id);
+        const profile = profileDataset.get();
+        selectImageFromId(profile, e.target.id);
     },
     "click .previewImage": function (e) {
-        selectImageFromId(e.target.id);
+        // Used on mobile where there is no mouse hover / enter / exit
+        const profile = profileDataset.get();
+        selectImageFromId(profile, e.target.id);
     },
     "click #nextButton": function (e) {
         goNext();

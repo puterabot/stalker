@@ -1,3 +1,5 @@
+selectedImage = new ReactiveVar(null);
+
 computeImagePreviewSizes = function (arr) {
     let targetSize = 64;
     if (window.innerWidth < 1200) {
@@ -12,6 +14,16 @@ computeImagePreviewSizes = function (arr) {
         } else {
             img.ddx = targetSize * dxdy;
             img.ddy = targetSize;
+        }
+    }
+}
+
+selectImageFromId = function (profile, imageId) {
+    for (let i = 0; i < profile.images.length; i++) {
+        const id_i = profile.images[i]._id._str;
+        if (id_i === imageId) {
+            selectedImage.set(profile.images[i]);
+            return;
         }
     }
 }

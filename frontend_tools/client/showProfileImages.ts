@@ -29,3 +29,17 @@ Template.showProfileImagesTemplate.helpers({
         return info;
     }
 });
+
+Template.showProfileImagesTemplate.events({
+    "mouseenter .previewImage": function (e) {
+        const imageId = e.target.id;
+        const profilePhone = e.target.parentElement.id;
+        const profile = profilesCache.get()[profilePhone];
+        if (profile) {
+            selectImageFromId(profile, e.target.id);
+        } else {
+            console.log('Phone not found');
+            console.log(profilesCache.get());
+        }
+    }
+});

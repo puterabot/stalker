@@ -10,15 +10,15 @@
             <p>
                 Images: {{profileData.images.length}}
             </p>
-            <div id="previewsArea">
-                {{#if profileData.images.length}}
+            {{#if profileData.images.length}}
+                <div id="{{profileData.p}}">
                     {{#each profileData.images}}
                         <img id="{{_id._str}}" class="previewImage" width="{{ddx}}" height="{{ddy}}" src="{{localUrl}}">
                     {{/each}}
-                {{else}}
-                    Profile has no images! check database.
-                {{/if}}
-            </div>
+                </div>
+            {{else}}
+                Profile has no images! check database.
+            {{/if}}
         {{else}}
             Profile data loading...
         {{/if}}
