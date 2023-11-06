@@ -1,12 +1,10 @@
 <template name="validateIncomingProfilesTemplate">
     <div class="container">
         <span class="leftcol">
-            <img id="mainImage" src={{selectedImage.localUrl}}>
-            <p id="imageData">
-                Image info: <a href="{{selectedImage.url}}">source</a>
-                <br>
-                Published: {{selectedImageDateFormatted}}
+            <p id="imageData">       
+                Published: {{selectedImageDateFormatted}} / <a href="{{selectedImage.url}}">source</a>
             </p>
+            <img id="mainImage" src={{selectedImage.localUrl}}>
         </span>
         <span class="rightcol">
             <div class="profileArea">

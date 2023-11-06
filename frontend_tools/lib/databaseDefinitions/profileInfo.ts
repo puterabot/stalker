@@ -18,10 +18,10 @@ if (Meteor.isServer) {
             {lastService: {$ne: "servicios-virtuales"}},
             
             {lastPostDate: {$gte: new Date("2023-11-01T00:00:00.000Z")}},
-            {firstPostDate: {$gte: new Date("2023-10-21T00:00:00.000Z")}}
+            {firstPostDate: {$gte: new Date("2023-11-01T00:00:00.000Z")}}
         ]};
         
-        //const filter = { $expr: { $gt: [{ $size: "$imageIdArray" }, 2000] } };
+        //const filter = { $expr: { $gt: [{ $size: "$imageIdArray" }, 1000] } };
         //const filter = { $expr: { $eq: [{ $size: "$relatedProfilesByReplicatedImages" }, 37] } };
         return globalProfileInfo.find(filter);
     });
