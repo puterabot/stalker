@@ -253,3 +253,9 @@ db.post.find().forEach(function(document) {
 var sortedAttributes = Array.from(distinctAttributes).sort();
 printjson(sortedAttributes);
 ```
+
+### Check profiles with more related profiles due to repeated images
+
+```
+db.profileInfo.find({ $expr: { $eq: [{ $size: "$relatedProfilesByReplicatedImages" }, 37] } }).count()
+```
