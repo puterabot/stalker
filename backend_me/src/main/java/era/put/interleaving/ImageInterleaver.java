@@ -58,7 +58,7 @@ public class ImageInterleaver {
             }
 
             logger.info("= CREATING P0 REFERENCES =========================");
-            FindIterable<Document> imageIterable =c.image.find(exists("p0", false));
+            FindIterable<Document> imageIterable = c.image.find(exists("p0", false));
             ThreadFactory threadFactory = Util.buildThreadFactory("ImagesP0ReferencerComparator[%03d]");
             ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_P0_REFERENCER_THREADS, threadFactory);
             AtomicInteger totalImagesProcessed = new AtomicInteger(0);

@@ -118,24 +118,6 @@ Note that groups are made around hints. Hints can be strong or weak.
   4. file descriptor computed by findimagedupes, haar face detection, YOLO or others.
 - On the UI for traversing recent profiles, strong and weak hints should be shown.
 
-# Sample queries
-
-To obtain the latest profiles at Bogotá:
-```
-db.profileInfo.find({$and: [{firstPostDate: {$ne: null}}, {lastLocation: /bogota/i}, {lastService: {$not: /gay/}}, {lastService: {$not: /gigolo/}}, {lastService: {$ne: "servicios-virtuales"}}]}).sort({firstPostDate: -1})
-db.getCollection('profileInfo').find({$and: [{firstPostDate: {$ne: null}}, {lastLocation: /bogot/i}, {lastService: {$not: /gay/}}, {lastService: {$not: /gigolo/}}, {lastService: {$not: /travesti/}}, {lastService: {$ne: "servicios-virtuales"}}, {lastPostDate: {$gte: new Date("2020-06-01T00:00:00.000Z")}}, {firstPostDate: {$gte: new Date("2020-05-01T00:00:00.000Z")}}]}).sort({firstPostDate: -1})
-```
-
-Example of profiles with a lot of posts:
-
-    5ec95b8c837bc06021725e4f (541) : and this uses several profiles
-    5ec95e38f75b2b407c68c279
-    5ec7a750f7aa7031162c5845
-
-Profile that have changed number (old posts published with a number still available, but now linked to another number):
-
-    5ee94e6d286cae0736e6b7e3 - 5ec80586f7aa7031162cc7d4
-
 # Pending data quality checks
 
 ## Profiles without posts
@@ -143,13 +125,11 @@ Profile that have changed number (old posts published with a number still availa
 There are 396 profiles, some with images, that has no post references. How is this possible?
 Recommended filter: detect them, delete the associated images and remove profile and profileInfo from database.
 
-
 ```
 db.profileInfo.find({numPosts: 0}, {_id: false, postIdArray: false, postUrlArray: false, imageIdArray: false, locationArray: false})
 ```
 
 ## Mismatch between stored images on folder and images on database
-
 
 The number on this two queries are a little different:
 
@@ -259,3 +239,21 @@ printjson(sortedAttributes);
 ```
 db.profileInfo.find({ $expr: { $eq: [{ $size: "$relatedProfilesByReplicatedImages" }, 37] } }).count()
 ```
+
+### Latest profiles
+
+To obtain the latest profiles at Bogotá:
+```
+db.profileInfo.find({$and: [{firstPostDate: {$ne: null}}, {lastLocation: /bogota/i}, {lastService: {$not: /gay/}}, {lastService: {$not: /gigolo/}}, {lastService: {$ne: "servicios-virtuales"}}]}).sort({firstPostDate: -1})
+db.getCollection('profileInfo').find({$and: [{firstPostDate: {$ne: null}}, {lastLocation: /bogot/i}, {lastService: {$not: /gay/}}, {lastService: {$not: /gigolo/}}, {lastService: {$not: /travesti/}}, {lastService: {$ne: "servicios-virtuales"}}, {lastPostDate: {$gte: new Date("2020-06-01T00:00:00.000Z")}}, {firstPostDate: {$gte: new Date("2020-05-01T00:00:00.000Z")}}]}).sort({firstPostDate: -1})
+```
+
+Example of profiles with a lot of posts:
+
+    5ec95b8c837bc06021725e4f (541) : and this uses several profiles
+    5ec95e38f75b2b407c68c279
+    5ec7a750f7aa7031162c5845
+
+Profile that have changed number (old posts published with a number still available, but now linked to another number):
+
+    5ee94e6d286cae0736e6b7e3 - 5ec80586f7aa7031162cc7d4
