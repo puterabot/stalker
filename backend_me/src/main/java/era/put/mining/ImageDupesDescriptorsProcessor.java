@@ -3,11 +3,6 @@ package era.put.mining;
 import com.mongodb.BasicDBObject;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
-import com.sleepycat.db.Database;
-import com.sleepycat.db.DatabaseConfig;
-import com.sleepycat.db.DatabaseType;
-import com.sleepycat.db.Environment;
-import com.sleepycat.db.EnvironmentConfig;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
 import era.put.base.Util;
@@ -17,7 +12,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -64,16 +59,15 @@ public class ImageDupesDescriptorsProcessor {
     }
 
     /**
-    This method can not receive any possible input since some escape sequences are ambiguous.
+    Note that this will be valid only when using the db_dump_custom version of Berkeley db5.3 library
+    provided in the project. Will fail on standard db_dump command since some escape sequences are ambiguous.
     Example: \03f is \03 followed by 'f'? or is \0 followed by "3f".
-    Should replace use of db_dump by direct binary file processing.
     */
-    @Deprecated
     public static String convertEscapedStringToHexagesimalNibbles(String input) {
         Pattern patron = Pattern.compile("\\\\[0-9A-Fa-f]{1,2}");
         Matcher matcher = patron.matcher(input);
 
-        StringBuffer result = new StringBuffer();
+        StringBuilder result = new StringBuilder();
         while (matcher.find()) {
             String secuenciaEscape = matcher.group();
             int valor = Integer.parseInt(secuenciaEscape.substring(1), 16);
@@ -82,7 +76,7 @@ public class ImageDupesDescriptorsProcessor {
         }
         matcher.appendTail(result);
 
-        byte[] bytesArray = result.toString().getBytes(Charset.forName("ISO-8859-1"));
+        byte[] bytesArray = result.toString().getBytes(StandardCharsets.ISO_8859_1);
         StringBuilder hexString = new StringBuilder(2 * bytesArray.length);
         for (byte b : bytesArray) {
             hexString.append(String.format("%02X", b));
@@ -116,32 +110,10 @@ public class ImageDupesDescriptorsProcessor {
         image.updateOne(filter, updateDocument);
     }
 
-    private static void processBerkeleyDatabaseUsingAPI(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
-        try {
-            String folder = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes";
-            EnvironmentConfig environmentConfig = new EnvironmentConfig();
-            environmentConfig.setInitializeCache(false);
-            environmentConfig.setInitializeCDB(false);
-            environmentConfig.setTransactional(true);
-            environmentConfig.setAllowCreate(true);
-            environmentConfig.setReplicationInMemory(true);
-            environmentConfig.setCacheSize(1024 * 1024 * 512);
-            Environment env = new Environment(new File(folder), environmentConfig);
-
-            DatabaseConfig dbConfig = new DatabaseConfig();
-            dbConfig.setType(DatabaseType.BTREE);
-            Database catalogDb = env.openDatabase(null, berkeleyDatabaseFilename, null, dbConfig);
-            catalogDb.close();
-            env.close();
-        } catch (Exception e) {
-            logger.error(e);
-        }
-    }
-
     private static void processBerkeleyDatabaseUsingDbDump(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
         try {
             String filename = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes/" + berkeleyDatabaseFilename;
-            String command = "db_dump -d a " + filename;
+            String command = "../custom_db_dump/cmake-build-release/db_dump_custom -d a " + filename;
             Process process = Runtime.getRuntime().exec(command);
             InputStream inputStream = process.getInputStream();
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -253,7 +225,7 @@ public class ImageDupesDescriptorsProcessor {
         return false;
     }
 
-    private static void createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(File fd, MongoCollection<Document> image) {
+    private static void createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(MongoCollection<Document> image) {
         // 1: Find images without descriptors and group them by image folder
         ArrayList<Document> set = new ArrayList<>();
         set.add(new Document("x", true));
@@ -304,8 +276,7 @@ public class ImageDupesDescriptorsProcessor {
         if (children != null) {
             for (String berkeleyDatabaseFilename : children) {
                 executorService.submit(() ->
-                    processBerkeleyDatabaseUsingAPI(berkeleyDatabaseFilename, totalDatabasesProcessed, image)
-                    //processBerkeleyDatabaseUsingDbDump(berkeleyDatabaseFilename, totalDatabasesProcessed, image)
+                    processBerkeleyDatabaseUsingDbDump(berkeleyDatabaseFilename, totalDatabasesProcessed, image)
                 );
             }
         }
@@ -331,7 +302,7 @@ public class ImageDupesDescriptorsProcessor {
             return;
         }
 
-        createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(fd, mongoConnection.image);
+        createBerkeleyDatabaseFilesFromImagesWithMissingFindImageDupesDescriptors(mongoConnection.image);
         importFindImagesDupesDescriptorsFromBerkeleyDatabaseFiles(fd, mongoConnection.image);
     }
 }

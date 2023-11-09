@@ -73,13 +73,13 @@ public class MeLocalDataProcessorApp {
 
         // 4. Process inter-profile similarity hints by shasum image descriptors
         ImageInfo.deleteExternalChildImages();
-        //ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
+        ImageDupesDescriptorsProcessor.updateFindImageDupesDescriptors();
 
         // TODO: Compute / update Yolo object detection (including faces and tatoos)
 
         // TODO: Compute / update face id image descriptors
 
-        //ImageDupesSimilaritiesFinder.performMatchSearch(220);
+        ImageDupesSimilaritiesFinder.performMatchSearch(220);
 
         // TODO: Add the similarity hints by face id image descriptors
 

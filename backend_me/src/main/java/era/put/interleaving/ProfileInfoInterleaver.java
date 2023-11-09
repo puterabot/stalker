@@ -26,7 +26,7 @@ import org.bson.types.ObjectId;
 
 public class ProfileInfoInterleaver {
     private static final Logger logger = LogManager.getLogger(ProfileInfoInterleaver.class);
-    private static int NUMBER_OF_PROFILE_BUILDER_THREADS = 72;
+    private static final int NUMBER_OF_PROFILE_BUILDER_THREADS = 72;
     public static void createExtendedProfileInfo(PrintStream out) {
         try {
             MongoConnection c = MongoUtil.connectWithMongoDatabase();
@@ -42,9 +42,9 @@ public class ProfileInfoInterleaver {
             ExecutorService executorService = Executors.newFixedThreadPool(NUMBER_OF_PROFILE_BUILDER_THREADS, threadFactory);
             AtomicInteger counter = new AtomicInteger(0);
 
-            profileIterable.forEach((Consumer<? super Document>) profileDocument -> {
-                executorService.submit(() -> buildExtendedInfoProfile(out, profileDocument, c, counter));
-            });
+            profileIterable.forEach((Consumer<? super Document>) profileDocument ->
+                executorService.submit(() -> buildExtendedInfoProfile(out, profileDocument, c, counter))
+            );
 
             executorService.shutdown();
             try {
@@ -58,7 +58,6 @@ public class ProfileInfoInterleaver {
             System.out.println("= EXTENDED PROFILE INFO COMPLETE =========================");
         } catch (MongoCursorNotFoundException | MongoTimeoutException e) {
             out.println("ERROR: creating extended profile info");
-            e.printStackTrace();
         }
     }
 

@@ -122,8 +122,10 @@ Note that groups are made around hints. Hints can be strong or weak.
 
 ## Profiles without posts
 
-There are 396 profiles, some with images, that has no post references. How is this possible?
-Recommended filter: detect them, delete the associated images and remove profile and profileInfo from database.
+There are 551 profiles, some with images, that has no post references. How is this possible?
+
+Alternative: detect them, delete the associated images and remove profile and profileInfo from database.
+After checking those profiles, there are relevant info. Removal is not advised.
 
 ```
 db.profileInfo.find({numPosts: 0}, {_id: false, postIdArray: false, postUrlArray: false, imageIdArray: false, locationArray: false})
@@ -237,7 +239,7 @@ printjson(sortedAttributes);
 ### Check profiles with more related profiles due to repeated images
 
 ```
-db.profileInfo.find({ $expr: { $eq: [{ $size: "$relatedProfilesByReplicatedImages" }, 37] } }).count()
+db.profileInfo.find({ $expr: { $gte: [{ $size: "$relatedProfilesByReplicatedImages" }, 37] } }).count()
 ```
 
 ### Latest profiles
