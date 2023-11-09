@@ -6,7 +6,7 @@ globalProfileInfo = new Mongo.Collection('profileInfo');
 if (Meteor.isServer) {
     console.log('  - Publishing profileInfo collection');
     Meteor.publish('profileInfo_latest', function (param) {
-        /*
+        
         const filter = {$and: [
             {firstPostDate: {$ne: null}},
             {lastLocation: /bog/i},
@@ -20,9 +20,9 @@ if (Meteor.isServer) {
             {lastPostDate: {$gte: new Date("2023-11-01T00:00:00.000Z")}},
             {firstPostDate: {$gte: new Date("2023-11-01T00:00:00.000Z")}}
         ]};
-        */
+        
 
-        const filter = {numPosts: 0};
+        //const filter = {numPosts: 0};
 
         /*
         const filter = {$and: [
