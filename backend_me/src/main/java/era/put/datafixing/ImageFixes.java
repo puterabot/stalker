@@ -282,7 +282,6 @@ public class ImageFixes {
 
         executorService.shutdown();
         try {
-            //executorService.wait();
             if (!executorService.awaitTermination(2, TimeUnit.HOURS)) {
                 logger.error("Parent image comparator threads taking so long!");
             }
