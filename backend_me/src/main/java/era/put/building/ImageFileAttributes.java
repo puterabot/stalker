@@ -58,4 +58,13 @@ public class ImageFileAttributes implements Comparable<ImageFileAttributes> {
 
         return 0;
     }
+
+    public double ratioDistance(ImageFileAttributes other) {
+        if (other == null || this.dx == 0 || other.dy == 0) {
+            return Double.MAX_VALUE;
+        }
+        double thisRatio = (double)this.dx / (double)this.dy;
+        double otherRatio = (double)other.dx / (double)other.dy;
+        return Math.abs(thisRatio - otherRatio);
+    }
 }
