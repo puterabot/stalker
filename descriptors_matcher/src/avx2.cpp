@@ -27,10 +27,11 @@ class ImageDescriptor {
 	    return -1;
 	}
 	
-	return highNibble * 16 + lowNibble;;
+	return highNibble * 16 + lowNibble;
     }
 };
 
+// Optimized algorithm core using 256 bit registers from AVX2 instruction set :)
 inline int
 countDifferentBitsAVX2(const unsigned char array1[32], const unsigned char array2[32]) {
     const __m256i* v1 = reinterpret_cast<const __m256i*>(array1);
@@ -38,7 +39,7 @@ countDifferentBitsAVX2(const unsigned char array1[32], const unsigned char array
     __m256i vec1 = _mm256_loadu_si256(v1);
     __m256i vec2 = _mm256_loadu_si256(v2);
     __m256i sumResult = _mm256_sad_epu8(vec1, vec2);
-    return  _mm256_extract_epi32(sumResult, 0) + _mm256_extract_epi32(sumResult, 4);
+    return _mm256_extract_epi32(sumResult, 0) + _mm256_extract_epi32(sumResult, 4);
 }
 
 void
@@ -47,13 +48,12 @@ searchMatchesForPivot(long n, const ImageDescriptor *dataSource, long pivotIndex
     for (long i = pivotIndex + 1; i < n; i++) {
         int result = countDifferentBitsAVX2(dataSource[pivotIndex].descriptor, dataSource[i].descriptor);
         if (result == 0) {
-	    printf("%c%c/%s.jpg ", dataSource[i].id[22], dataSource[i].id[23], dataSource[i].id);
+	    printf("%s ", dataSource[i].id);
             count++;
         }
     }
     if (count > 0) {
-        printf("%c%c/%s.jpg\n",
-            dataSource[pivotIndex].id[22], dataSource[pivotIndex].id[23], dataSource[pivotIndex].id);
+        printf("%s\n", dataSource[pivotIndex].id);
     }
 }
 
@@ -90,7 +90,6 @@ main(int argc, char *argv[]) {
     fclose(fd);
 
     //---------------------------------------------------------------------------
-    long p = 0;
     for (long i = 0; i < n - 1; i++) {
 	int group = data[i].identifyGroup();
 	if (group < 0) {
@@ -100,10 +99,8 @@ main(int argc, char *argv[]) {
         if (module != referenceGroup) {
 	    continue;
 	}
-	p++;
         searchMatchesForPivot(n, data, i);
     }
-    printf("Processed elements: %ld\n", p);
 
     //---------------------------------------------------------------------------
     delete data;
