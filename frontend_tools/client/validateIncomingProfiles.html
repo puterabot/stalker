@@ -30,7 +30,7 @@
             </div>
 
             {{#if profileDataset.relatedProfiles.length}}
-                <h1>Related profiles: {{profileDataset.relatedProfiles.length}}</h1>
+                <h1>Related profiles by identical image files: {{profileDataset.relatedProfiles.length}}</h1>
                 {{#each profileDataset.relatedProfiles}}
                     {{> showProfileImagesTemplate p=p}}
                 {{/each}}
