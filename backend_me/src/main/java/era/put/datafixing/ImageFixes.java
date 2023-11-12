@@ -93,7 +93,7 @@ public class ImageFixes {
         if (parentId instanceof ObjectId) {
             int n = counter.incrementAndGet();
             if (n % 100000 == 0) {
-                logger.info("Images processed so far: " + n);
+                logger.info("Image records on database processed so far: " + n);
             }
             String _id = ((ObjectId) imageObject.get("_id")).toString();
             String filename = ImageDownloader.imageFilename(_id, System.out);
@@ -212,7 +212,7 @@ public class ImageFixes {
             int n = totalImagesProcessed.getAndIncrement();
             int ne = errorCount.get();
             if (n % 10000 == 0) {
-                logger.info("Images verified to have correct image file: {}, errors: {}", n, ne);
+                logger.info("Images verified to have correct image file and correct attributes: {}, errors: {}", n, ne);
             }
 
             File fd = new File(imageFilename);

@@ -113,7 +113,7 @@ public class ImageDupesDescriptorsProcessor {
     private static void processBerkeleyDatabaseUsingDbDump(String berkeleyDatabaseFilename, AtomicInteger totalDatabasesProcessed, MongoCollection<Document> image) {
         try {
             String filename = ME_IMAGE_DOWNLOAD_PATH + "/findimagedupes/" + berkeleyDatabaseFilename;
-            String command = "../custom_db_dump/cmake-build-release/db_dump_custom -d a " + filename;
+            String command = "../custom_db_dump/build/db_dump_custom -d a " + filename;
             Process process = Runtime.getRuntime().exec(command);
             InputStream inputStream = process.getInputStream();
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));

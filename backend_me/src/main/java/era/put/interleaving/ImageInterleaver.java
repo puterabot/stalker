@@ -34,9 +34,9 @@ public class ImageInterleaver {
             Document post = c.post.find(filter).first();
             if (post != null) {
                 newReferences.add(post.getObjectId("_id"));
-                logger.info("    . Adding " + id.toString());
+                //logger.info("    . Adding " + id.toString());
             } else {
-                logger.info("    . Deleting " + id.toString());
+                //logger.info("    . Deleting " + id.toString());
             }
         }
 
@@ -96,7 +96,7 @@ public class ImageInterleaver {
             }
         }
         if (objectIds.size() != 1) {
-            logger.info("  - Skipping {} - it has {} elements", imageDocument.getObjectId("_id").toString(), objectIds.size());
+            //logger.info("  - Skipping {} - it has {} elements", imageDocument.getObjectId("_id").toString(), objectIds.size());
             cleanDuplicates(imageDocument, objectIds, c, out);
             return;
         }

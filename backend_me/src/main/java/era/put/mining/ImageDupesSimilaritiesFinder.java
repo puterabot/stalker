@@ -12,7 +12,6 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,10 +76,10 @@ public class ImageDupesSimilaritiesFinder {
         writer.close();
     }
 
-    private static boolean executeNativeCpuAvx2Matcher(int n, int i, ConcurrentLinkedQueue<String> matchGroupCandidates) {
+    private static boolean executeNativeCpuAvx2Matcher(int i, ConcurrentLinkedQueue<String> matchGroupCandidates) {
         try {
             int cpuNode = i % 2;
-            String command = "/usr/bin/numactl --cpunodebind=" + cpuNode + " --membind=" + cpuNode + " ../descriptors_matcher/build/avx2 " + n + " " + i;
+            String command = "/usr/bin/numactl --cpunodebind=" + cpuNode + " --membind=" + cpuNode + " ../descriptors_matcher/build/avx2 " + NUMBER_OF_IMAGE_DESCRIPTOR_MATCHER_CPU_AVX2_THREADS + " " + i;
             Process process = Runtime.getRuntime().exec(command);
             InputStream standardOutputStream = process.getInputStream();
             BufferedReader br = new BufferedReader(new InputStreamReader(standardOutputStream));
@@ -287,7 +286,7 @@ public class ImageDupesSimilaritiesFinder {
         for (int i = 0; i < NUMBER_OF_IMAGE_DESCRIPTOR_MATCHER_CPU_AVX2_THREADS; i++) {
             final int pid = i;
             executorService.submit(() -> {
-                if (!executeNativeCpuAvx2Matcher(NUMBER_OF_IMAGE_DESCRIPTOR_MATCHER_CPU_AVX2_THREADS, pid, matchGroupCandidates)) {
+                if (!executeNativeCpuAvx2Matcher(pid, matchGroupCandidates)) {
                     errors = true;
                 }
             });
