@@ -89,6 +89,9 @@ This system connects to a mongodb database called `mileroticos` and uses the fol
     . non-existent: image not still processed
     . d: 32 bytes (256 bit) find image descriptor: normalized 16x16 binary image thumbnail
     . note that af is present only on parent images (those with {x: true})
+  - **afx0**:
+    . non-existent: image has not known similar images by findimagedupes descriptors
+  - . [...]: array of ObjectId with images that have similarity 0 (equals) on findimagedupes descriptors
   - **md**: measured date from url
   - **x**: eXternal reference to proXy image (identical image older than this one)
     . non-existent: non grouped image
@@ -251,11 +254,13 @@ db.getCollection('profileInfo').find({$and: [{firstPostDate: {$ne: null}}, {last
 ```
 
 Example of profiles with a lot of posts:
-
+```
     5ec95b8c837bc06021725e4f (541) : and this uses several profiles
     5ec95e38f75b2b407c68c279
     5ec7a750f7aa7031162c5845
+```
 
 Profile that have changed number (old posts published with a number still available, but now linked to another number):
-
+```
     5ee94e6d286cae0736e6b7e3 - 5ec80586f7aa7031162cc7d4
+```

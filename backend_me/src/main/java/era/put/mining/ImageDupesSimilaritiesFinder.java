@@ -162,6 +162,24 @@ public class ImageDupesSimilaritiesFinder {
         }
     }
 
+    private static void saveCorrespondencesToDatabase(List<Set<String>> candidates, MongoCollection<Document> imageCollection) {
+        for (Set<String> group: candidates) {
+            for (String imageId: group) {
+                List<ObjectId> similarList = new ArrayList<>();
+                for (String otherImageId: group) {
+                    if (!imageId.equals(otherImageId)) {
+                        similarList.add(new ObjectId(otherImageId));
+                    }
+                }
+                if (similarList.size() > 0) {
+                    Document filter = new Document("_id", new ObjectId(imageId));
+                    Document value = new Document("$set", new BasicDBObject("afx0", similarList));
+                    imageCollection.updateOne(filter, value);
+                }
+            }
+        }
+    }
+
     private static void processGroupCandidates(ConcurrentLinkedQueue<String> matchGroupCandidates, MongoCollection<Document> imageCollection) {
         List<Set<String>> allCandidateSetsByDescriptorSimilarities = buildCandidateSets(matchGroupCandidates);
         int[] histogram;
@@ -172,9 +190,10 @@ public class ImageDupesSimilaritiesFinder {
 
         classifyAllCandidateGroups(allCandidateSetsByDescriptorSimilarities, finalCandidates, invalidCandidates, imageCollection);
 
-        // Export for debug
-        exportDebugFileForImageGroups("imageGroupsValid.txt", histogram, finalCandidates.stream().toList());
-        exportDebugFileForImageGroups("imageGroupsInvalid.txt", histogram, invalidCandidates.stream().toList());
+        //exportDebugFileForImageGroups("imageGroupsValid.txt", histogram, finalCandidates.stream().toList());
+        //exportDebugFileForImageGroups("imageGroupsInvalid.txt", histogram, invalidCandidates.stream().toList());
+
+        saveCorrespondencesToDatabase(finalCandidates.stream().toList(), imageCollection);
     }
 
     private static int[] buildCandidatesHistogram(List<Set<String>> candidateSetsByDescriptorSimilarities) {
