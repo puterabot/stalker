@@ -245,6 +245,11 @@ printjson(sortedAttributes);
 db.profileInfo.find({ $expr: { $gte: [{ $size: "$relatedProfilesByReplicatedImages" }, 37] } }).count()
 ```
 
+### Double check border removal algorithm
+
+There is a sample image `6551b0f715aeb668b9da34ec` with borders to be removed at all its 4 sides.
+It seems current algorithm only removes 3 of the 4 sides.
+
 ### Latest profiles
 
 To obtain the latest profiles at Bogotá:
