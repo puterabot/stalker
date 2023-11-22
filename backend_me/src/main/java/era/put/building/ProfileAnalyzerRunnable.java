@@ -3,7 +3,6 @@ package era.put.building;
 import com.mongodb.BasicDBObject;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
-import era.put.MePostWebCrawlerBotSeleniumApp;
 import era.put.base.Configuration;
 import era.put.base.MongoConnection;
 import era.put.base.MongoUtil;
@@ -586,11 +585,11 @@ public class ProfileAnalyzerRunnable implements Runnable {
                 Document filter = new Document().append("i", i);
                 Document p = mongoConnection.post.find(filter).first();
                 if (p == null ) {
-                    logger.info("Not processing post {}, post not found on database", p != null ? p.getString("url") : "null");
+                    logger.info("Not processing post, not found on database");
                     continue;
                 }
                 if ( p.get("p") != null) {
-                    logger.info("Not processing post with id {} and url {}, post marked as processed", i, p != null ? p.getString("url") : "null");
+                    logger.info("Not processing post with id {} and url {}, post marked as processed", i, p.getString("url"));
                     continue;
                 }
 
