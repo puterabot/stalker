@@ -190,8 +190,8 @@ public class ImageDupesSimilaritiesFinder {
 
         classifyAllCandidateGroups(allCandidateSetsByDescriptorSimilarities, finalCandidates, invalidCandidates, imageCollection);
 
-        //exportDebugFileForImageGroups("imageGroupsValid.txt", histogram, finalCandidates.stream().toList());
-        //exportDebugFileForImageGroups("imageGroupsInvalid.txt", histogram, invalidCandidates.stream().toList());
+        exportDebugFileForImageGroups("/tmp/imageGroupsValid.txt", histogram, finalCandidates.stream().toList());
+        exportDebugFileForImageGroups("/tmp/imageGroupsInvalid.txt", histogram, invalidCandidates.stream().toList());
 
         saveCorrespondencesToDatabase(finalCandidates.stream().toList(), imageCollection);
     }

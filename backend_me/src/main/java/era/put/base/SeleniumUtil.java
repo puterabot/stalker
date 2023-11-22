@@ -1,12 +1,15 @@
 package era.put.base;
 
-import era.put.MeBotSeleniumApp;
+import era.put.MePostWebCrawlerBotSeleniumApp;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Random;
 import javax.imageio.ImageIO;
+import lombok.Getter;
 import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,6 +30,9 @@ public class SeleniumUtil {
     private static final int DRIVER = 2;
     private static final Random random = new Random();
     private static String CHROME_PROFILE_PATH; // Check default value from URL chrome://version
+    @Getter
+    public static final List<WebDriver> currentDrivers = new ArrayList<>();
+
 
     static {
         try {
@@ -43,6 +49,15 @@ public class SeleniumUtil {
         }
     }
 
+    public static void panicCheck(WebDriver webDriver) {
+        WebElement iconCheck = webDriver.findElement(By.id("logo"));
+        if (iconCheck == null) {
+            logger.error("PANIC!: RESTART SESSION - CHECK COUNTER BOT MEASURES HAS NOT BEEN TRIGGERED!");
+            SeleniumUtil.closeWebDriver(webDriver);
+            MePostWebCrawlerBotSeleniumApp.cleanUp();
+            Util.exitProgram("Panic test failed.");
+        }
+    }
 
     public static void login(WebDriver d, Configuration c) {
         d.get(c.getRootSiteUrl());
@@ -112,7 +127,7 @@ public class SeleniumUtil {
                 }
 
                 WebDriver driver = new ChromeDriver(options);
-                MeBotSeleniumApp.currentDrivers.add(driver);
+                currentDrivers.add(driver);
                 return driver;
             } else {
                 Util.exitProgram("Firefox not supported");
