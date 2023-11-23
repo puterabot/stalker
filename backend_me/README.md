@@ -71,3 +71,5 @@ where **mainClass** is one of the following:
 - **MeProfileWebCrawlerBotSeleniumApp**: main web crawler to get profile and image information.
 - **MeLocalDataProcessorApp**:  after having some downloaded posts, profiles and images, executes data cleanup, image processing and other analysis steps, as such face extraction and neural network trainning.
 - **MeDistributedCopierAndSyncTool**: a set of procedures to help on copy, configure and sync system on a set of remote systems for distributed run
+- **MeAwtSessionSetupApp**: a control bot for the GUI used to start mwm and verify chrome is passing to ME over cloudfront check screen
+
