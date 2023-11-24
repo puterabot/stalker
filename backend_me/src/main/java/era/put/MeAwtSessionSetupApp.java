@@ -4,6 +4,7 @@ import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
+import java.awt.event.InputEvent;
 import java.io.File;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -45,7 +46,7 @@ public class MeAwtSessionSetupApp {
         return null;
     }
 
-    private void checkMwm(String referenceImageFilename) throws Exception {
+    private Point checkIfImageIsOnScreen(String referenceImageFilename) throws Exception {
         RGBImage referenceImage = ImagePersistence.importRGB(new File(referenceImageFilename));
 
         Robot robot = new Robot();
@@ -56,20 +57,56 @@ public class MeAwtSessionSetupApp {
         RGBImage screenshotImage = new RGBImage();
         AwtRGBImageRenderer.importFromAwtBufferedImage(screenshot, screenshotImage);
 
-        ImagePersistence.exportPNG(new File("/tmp/a.png"), screenshotImage);
-
         Point p = imageInImage(screenshotImage, referenceImage);
         if (p == null) {
-            logger.info("Image is not present on screen");
+            logger.info("Image {} is not present on screen", referenceImageFilename);
         } else {
-            logger.info("Image detected on ({}, {})", p.getX(), p.getY());
-            robot.mouseMove((int)p.getX(), (int)p.getY());
+            logger.info("Image {} detected on ({}, {})", referenceImageFilename, p.getX(), p.getY());
+            return p;
+        }
+        return null;
+    }
+
+    private boolean clickOverImage(String imageFilename, int dx, int dy) throws Exception {
+        Point p = checkIfImageIsOnScreen(imageFilename);
+        if (p == null) {
+            return false;
+        }
+        Robot robot = new Robot();
+        robot.mouseMove(dx + (int)p.getX(), dy + (int)p.getY());
+        Thread.sleep(400);
+        robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);
+        Thread.sleep(200);
+        robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);
+        return true;
+    }
+
+    private void removeChromiumConfig() {
+    }
+
+    private void launchMwm() {
+    }
+
+    private void launchInitialChromeBrowser() {
+    }
+
+    private void doSeleniumBotStartup() throws Exception {
+        removeChromiumConfig();
+        while (checkIfImageIsOnScreen("./etc/01_mwmWindowCorner.png") == null) {
+            launchMwm();
+            Thread.sleep(5000);
+        }
+        launchInitialChromeBrowser(); // Note this instance is not controlled by Selenium
+        if (!clickOverImage("./etc/01_mwmWindowCorner.png", 6, 6)) {
+            logger.error("Could not close initial browser window, stopping process");
+            System.exit(1);
         }
     }
+
     public static void main(String[] args) {
         try {
-            MeAwtSessionSetupApp intance = new MeAwtSessionSetupApp();
-            intance.checkMwm("./etc/mwm_window.png");
+            MeAwtSessionSetupApp instance = new MeAwtSessionSetupApp();
+            instance.doSeleniumBotStartup();
         } catch (Exception e) {
             logger.error(e);
         }
