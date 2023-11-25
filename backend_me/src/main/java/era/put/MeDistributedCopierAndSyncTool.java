@@ -41,31 +41,6 @@ public class MeDistributedCopierAndSyncTool {
         }
     }
 
-    private static void runOsCommand(String command) throws Exception {
-        logger.info(command);
-        Process process = Runtime.getRuntime().exec(command);
-        process.waitFor();
-
-        InputStream standardOutputStream = process.getInputStream();
-        BufferedReader br = new BufferedReader(new InputStreamReader(standardOutputStream));
-        String line;
-        while ((line = br.readLine()) != null) {
-            logger.info(line);
-        }
-
-        InputStream standardErrorStream = process.getErrorStream();
-        BufferedReader bre = new BufferedReader(new InputStreamReader(standardErrorStream));
-        while ((line = bre.readLine()) != null) {
-            logger.error(line);
-        }
-
-        int value = process.exitValue();
-        if (value != 0) {
-            logger.error("Status returned by command: {}", value);
-            throw new RuntimeException("Can not execute [" + command + "] - review ssh permissions / authorized_keys on agent host");
-        }
-    }
-
     private static Thread runAsyncCommand(String command, int id) throws Exception {
         logger.info(command);
         AsyncRemoteRunner runner = new AsyncRemoteRunner(command, id);
@@ -132,22 +107,22 @@ public class MeDistributedCopierAndSyncTool {
         String tarFilename = "/tmp/stalker_tmp.tar.bz2";
         deleteTemporaryFile(tarFilename);
         command = "tar cfj " + tarFilename + " -C " + projectPath + "/../ stalker";
-        runOsCommand(command);
+        Util.runOsCommand(command);
 
         // 2. Copy compressed file to all hosts
         for (int i = 1; i <= NUMBER_OF_DISTRIBUTED_AGENTS; i++) {
             String sshConnection = getSshConnectionString(i);
             logger.info("----- Copying project to host {}/{} -----", i, NUMBER_OF_DISTRIBUTED_AGENTS);
             command = "ssh " + sshConnection + " mkdir -p " + REMOTE_SSH_INSTALL_PATH;
-            runOsCommand(command);
+            Util.runOsCommand(command);
             command = "ssh " + sshConnection + " rm -rf " + REMOTE_SSH_INSTALL_PATH + "/stalker";
-            runOsCommand(command);
+            Util.runOsCommand(command);
             command = "scp " + tarFilename + " " + sshConnection + ":" + REMOTE_SSH_INSTALL_PATH;
-            runOsCommand(command);
+            Util.runOsCommand(command);
             command = "ssh " + sshConnection + " tar xfj $HOME/" + REMOTE_SSH_INSTALL_PATH + "/stalker_tmp.tar.bz2 -C $HOME/" + REMOTE_SSH_INSTALL_PATH;
-            runOsCommand(command);
+            Util.runOsCommand(command);
             command = "ssh " + sshConnection + " rm -f $HOME/" + REMOTE_SSH_INSTALL_PATH + "/stalker_tmp.tar.bz2";
-            runOsCommand(command);
+            Util.runOsCommand(command);
         }
 
         // 3. Clean up
@@ -168,7 +143,7 @@ public class MeDistributedCopierAndSyncTool {
 
             createCustomAgentPropertiesFile(propertiesFilename, userFolder, i);
             String command = "scp /tmp/application.properties " + sshConnection + ":" + REMOTE_SSH_INSTALL_PATH + "/stalker/backend_me/src/main/resources/application.properties";
-            runOsCommand(command);
+            Util.runOsCommand(command);
         }
         File toDelete = new File("/tmp/application.properties");
         if (!toDelete.delete()) {

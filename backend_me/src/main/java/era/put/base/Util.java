@@ -2,7 +2,10 @@ package era.put.base;
 
 import era.put.MeLocalDataProcessorApp;
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Date;
 import java.util.StringTokenizer;
 import java.util.concurrent.ThreadFactory;
@@ -80,5 +83,30 @@ public class Util {
             }
         };
         return threadFactory;
+    }
+
+    public static void runOsCommand(String command) throws Exception {
+        logger.info(command);
+        Process process = Runtime.getRuntime().exec(command);
+        process.waitFor();
+
+        InputStream standardOutputStream = process.getInputStream();
+        BufferedReader br = new BufferedReader(new InputStreamReader(standardOutputStream));
+        String line;
+        while ((line = br.readLine()) != null) {
+            logger.info(line);
+        }
+
+        InputStream standardErrorStream = process.getErrorStream();
+        BufferedReader bre = new BufferedReader(new InputStreamReader(standardErrorStream));
+        while ((line = bre.readLine()) != null) {
+            logger.error(line);
+        }
+
+        int value = process.exitValue();
+        if (value != 0) {
+            logger.error("Status returned by command: {}", value);
+            throw new RuntimeException("Can not execute [" + command + "] - review ssh permissions / authorized_keys on agent host");
+        }
     }
 }

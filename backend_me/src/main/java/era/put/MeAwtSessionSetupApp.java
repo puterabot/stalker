@@ -1,11 +1,18 @@
 package era.put;
 
+import era.put.base.Configuration;
+import era.put.base.ConfigurationColombia;
+import era.put.base.Util;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.Robot;
 import java.awt.Toolkit;
 import java.awt.event.InputEvent;
 import java.io.File;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import vsdk.toolkit.io.image.ImagePersistence;
@@ -81,13 +88,60 @@ public class MeAwtSessionSetupApp {
         return true;
     }
 
-    private void removeChromiumConfig() {
+    private void removeChromiumConfig() throws Exception {
+        String homeDir = System.getenv("HOME");
+        String command = "rm -rf " + homeDir + "/.cache/chromium " + homeDir + "/.config/chromium";
+        Util.runOsCommand(command);
     }
 
-    private void launchMwm() {
+    private void launchMwm() throws Exception {
+        String command = "nohup mwm &";
+        Util.runOsCommand(command);
     }
 
-    private void launchInitialChromeBrowser() {
+    /**
+    Note this instance is not controlled by Selenium. The reason for controlling this browser instance
+    out of Selenium is to bypass the protection posed by Cloudflare, that can detect when the browser
+    is being run on test controlled mode and prevents entering the page.
+    */
+    private void launchInitialChromeBrowser() throws Exception {
+        Configuration configuration = new ConfigurationColombia();
+        ThreadFactory threadFactory = Util.buildThreadFactory("FindImageDupesDescriptorCalculator[%03d]");
+        ExecutorService executorService = Executors.newFixedThreadPool(1, threadFactory);
+        executorService.submit(() -> {
+            String command = "nohup chrome " + configuration.getRootSiteUrl();
+            try {
+                Util.runOsCommand(command);
+            } catch (Exception e) {
+
+            }
+        });
+
+        String imageFilename = "./etc/02_chromeRestoreDontSignInButton.png";
+        while (checkIfImageIsOnScreen(imageFilename) == null) {
+            logger.info("Waiting for browser to start");
+            Thread.sleep(1000);
+        }
+        logger.info("On sign in screen...");
+        if (!clickOverImage(imageFilename, 72, 15)) {
+            logger.error("Could not start new browser - check don't sign in button stage");
+            System.exit(1);
+        }
+        Thread.sleep(2000);
+    }
+
+    private void clickCloudFlareButton() throws Exception {
+        String imageFilename = "./etc/03_chromeCloudFlareButton.png";
+        while (checkIfImageIsOnScreen(imageFilename) == null) {
+            logger.info("Waiting for CloudFlare check screen");
+            Thread.sleep(1000);
+        }
+        logger.info("On CloudFlare check screen...");
+        if (!clickOverImage(imageFilename, 35, 38)) {
+            logger.error("Could not start new browser - check CloudFlare button stage");
+            System.exit(1);
+        }
+        Thread.sleep(2000);
     }
 
     private void doSeleniumBotStartup() throws Exception {
@@ -96,11 +150,27 @@ public class MeAwtSessionSetupApp {
             launchMwm();
             Thread.sleep(5000);
         }
-        launchInitialChromeBrowser(); // Note this instance is not controlled by Selenium
-        if (!clickOverImage("./etc/01_mwmWindowCorner.png", 6, 6)) {
+
+        launchInitialChromeBrowser();
+        clickCloudFlareButton();
+        closeMwmWindow();
+
+        // Do the web scrapping session
+
+        closeMwmWindow();
+    }
+
+    private void closeMwmWindow() throws Exception {
+        if (!clickOverImage("./etc/01_mwmWindowCorner.png", 15, 15)) {
             logger.error("Could not close initial browser window, stopping process");
             System.exit(1);
         }
+        Thread.sleep(3000);
+        if (!clickOverImage("./etc/07_mwmCloseWindowOption.png", 56, 12)) {
+            logger.error("Could not close initial browser window, stopping process");
+            System.exit(1);
+        }
+        Thread.sleep(2000);
     }
 
     public static void main(String[] args) {
