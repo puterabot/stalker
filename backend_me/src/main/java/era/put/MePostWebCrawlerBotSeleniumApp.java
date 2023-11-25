@@ -31,7 +31,6 @@ public class MePostWebCrawlerBotSeleniumApp {
 
     private static final int NUMBER_OF_LIST_THREADS = 1; // 32;
 
-    private static boolean RUN_FOREVER;
     private static int POST_LIST_NUMBER_OF_PROCESSES;
     private static int POST_LIST_PROCESS_ID;
 
@@ -44,12 +43,10 @@ public class MePostWebCrawlerBotSeleniumApp {
             }
             Properties properties = new Properties();
             properties.load(input);
-            RUN_FOREVER = Boolean.parseBoolean(properties.getProperty("web.crawler.forever.and.beyond"));
             POST_LIST_NUMBER_OF_PROCESSES = Integer.parseInt(properties.getProperty("web.crawler.post.listing.downloader.total.processes"));
             POST_LIST_PROCESS_ID = Integer.parseInt(properties.getProperty("web.crawler.post.listing.downloader.process.id"));
         } catch (Exception e) {
             logger.warn(e);
-            RUN_FOREVER = false;
             POST_LIST_NUMBER_OF_PROCESSES = 1;
             POST_LIST_PROCESS_ID = 0;
         }
@@ -96,20 +93,18 @@ public class MePostWebCrawlerBotSeleniumApp {
         ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger)LoggerFactory.getLogger(ch.qos.logback.classic.Logger.ROOT_LOGGER_NAME);
         root.setLevel(Level.OFF);
 
-        do {
-            // 1. Open
-            Date startDate = new Date();
-            logger.info("Application started, timestamp: {}", startDate);
-            Configuration c = new ConfigurationColombia();
+        // 1. Open
+        Date startDate = new Date();
+        logger.info("Application started, timestamp: {}", startDate);
+        Configuration c = new ConfigurationColombia();
 
-            // 2. Web crawler loop
-            processPostListings(c);
+        // 2. Web crawler loop
+        processPostListings(c);
 
-            // 3. Close
-            Date endDate = new Date();
-            logger.info("Program ended, timestamp: {}", endDate);
-            Util.reportDeltaTime(startDate, endDate);
-        } while (!RUN_FOREVER);
+        // 3. Close
+        Date endDate = new Date();
+        logger.info("Program ended, timestamp: {}", endDate);
+        Util.reportDeltaTime(startDate, endDate);
     }
 
     public static void main(String[] args) {
@@ -121,7 +116,10 @@ public class MePostWebCrawlerBotSeleniumApp {
 
             Thread.currentThread().setName("MAIN_THREAD");
 
+            MeAwtSessionSetupApp sessionControl = new MeAwtSessionSetupApp();
+            sessionControl.doSeleniumBotStartup();
             mainSequence();
+            sessionControl.doSeleniumBotShutdown();
         } catch (Exception e) {
             logger.error(e);
         }

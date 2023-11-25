@@ -134,7 +134,8 @@ public class MeProfileWebCrawlerBotSeleniumApp {
             Date endDate = new Date();
             logger.info("Program ended, timestamp: {}", endDate);
             Util.reportDeltaTime(startDate, endDate);
-        } while (!RUN_FOREVER);
+            Thread.sleep(1000*60*30);
+        } while (RUN_FOREVER);
     }
 
     public static void main(String[] args) {

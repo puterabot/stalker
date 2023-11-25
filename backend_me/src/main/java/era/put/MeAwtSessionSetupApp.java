@@ -12,7 +12,6 @@ import java.io.File;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import vsdk.toolkit.io.image.ImagePersistence;
@@ -144,7 +143,35 @@ public class MeAwtSessionSetupApp {
         Thread.sleep(2000);
     }
 
-    private void doSeleniumBotStartup() throws Exception {
+    private void closeMwmWindow() throws Exception {
+        if (!clickOverImage("./etc/01_mwmWindowCorner.png", 15, 15)) {
+            logger.error("Could not close initial browser window, stopping process");
+            System.exit(1);
+        }
+        Thread.sleep(3000);
+        if (!clickOverImage("./etc/06_mwmCloseWindowOption.png", 56, 12)) {
+            logger.error("Could not close initial browser window, stopping process");
+            System.exit(1);
+        }
+        Thread.sleep(2000);
+    }
+
+    private void clickMeAcceptButton() throws Exception {
+        Robot robot = new Robot();
+
+        Thread.sleep(2000);
+        for (int i = 0; i < 6; i++) {
+            robot.keyPress('\t');
+            Thread.sleep(400);
+            robot.keyRelease('\t');
+            Thread.sleep(500);
+        }
+        robot.keyPress(' ');
+        Thread.sleep(400);
+        robot.keyRelease(' ');
+    }
+
+    public void doSeleniumBotStartup() throws Exception {
         removeChromiumConfig();
         while (checkIfImageIsOnScreen("./etc/01_mwmWindowCorner.png") == null) {
             launchMwm();
@@ -153,30 +180,21 @@ public class MeAwtSessionSetupApp {
 
         launchInitialChromeBrowser();
         clickCloudFlareButton();
-        closeMwmWindow();
-
-        // Do the web scrapping session
-
+        clickMeAcceptButton();
         closeMwmWindow();
     }
 
-    private void closeMwmWindow() throws Exception {
-        if (!clickOverImage("./etc/01_mwmWindowCorner.png", 15, 15)) {
-            logger.error("Could not close initial browser window, stopping process");
-            System.exit(1);
-        }
-        Thread.sleep(3000);
-        if (!clickOverImage("./etc/07_mwmCloseWindowOption.png", 56, 12)) {
-            logger.error("Could not close initial browser window, stopping process");
-            System.exit(1);
-        }
-        Thread.sleep(2000);
+    public void doSeleniumBotShutdown() throws Exception {
+        //closeMwmWindow();
+        String command = "pkill -9 Xnest";
+        Util.runOsCommand(command);
     }
-
+	    
     public static void main(String[] args) {
         try {
             MeAwtSessionSetupApp instance = new MeAwtSessionSetupApp();
             instance.doSeleniumBotStartup();
+            instance.doSeleniumBotShutdown();
         } catch (Exception e) {
             logger.error(e);
         }
